@@ -1,0 +1,12 @@
+#webcam {
+    transform: rotateY(180deg);
+    position: 'absolute';
+    margin-right: 80px;
+}
+
+#my-canvas {
+    transform: rotateY(180deg);
+    position: 'absolute';
+    margin-right: 80px;
+    z-index: 1;
+}

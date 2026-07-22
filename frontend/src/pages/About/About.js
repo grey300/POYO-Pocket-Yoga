@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Input, Select, Button, Text, Heading, SimpleGrid } from '@chakra-ui/react';
+import {
+    Box, Input, Select, Button, Text, Heading, SimpleGrid,
+    Container, VStack, FormControl, FormLabel, Spinner, useToast
+} from '@chakra-ui/react';
+import axios from 'axios';
 import Navbar from '../../components/NavBar';
 import Footer from '../../components/Footer';
-import OpenAI from 'openai';
-const APIKEY = "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"
-const openai = new OpenAI({ apiKey: APIKEY, dangerouslyAllowBrowser: true });
+import { API_BASE } from '../../utils/api';
 
 export default function YogaPlanner() {
     const [weight, setWeight] = useState('');
@@ -13,40 +15,37 @@ export default function YogaPlanner() {
     const [experience, setExperience] = useState('beginner');
     const [plan, setPlan] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const toast = useToast();
 
     const generateYogaPlan = async () => {
-        setLoading(true);
-        setError(null);
-        setPlan(null);
-
-        if (!APIKEY) {
-            setError("API key is missing. Please check your .env file.");
-            setLoading(false);
+        if (!age || !weight || !height) {
+            toast({
+                title: 'Missing details',
+                description: 'Please enter your age, weight, and height.',
+                status: 'warning',
+                duration: 4000,
+                isClosable: true,
+            });
             return;
         }
 
-        try {
-            const completion = await openai.chat.completions.create({
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are a helpful assistant designed to create personalized yoga plans.",
-                    },
-                    {
-                        role: "user",
-                        content: `Generate a personalized yoga plan for a ${age}-year-old person with a weight of ${weight}kg and a height of ${height}cm. They have ${experience} experience level in yoga. only use Tree,Chair, Cobra, Warrior, Dog, Shoulderstand pose`,
-                    },
-                ],
-                model: "gpt-3.5-turbo-0125",
-                max_tokens: 200,
-                temperature: 0.7
-            });
+        setLoading(true);
+        setPlan(null);
 
-            setPlan(completion.choices[0].message.content);
+        try {
+            const { data } = await axios.post(`${API_BASE}/api/generate-plan`, {
+                age, weight, height, experience,
+            });
+            setPlan(data.plan);
         } catch (error) {
-            console.error('Error:', error);
-            setError(`Error: ${error.message}`);
+            const message = error.response?.data?.message || error.message;
+            toast({
+                title: 'Could not generate plan',
+                description: message,
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
         } finally {
             setLoading(false);
         }
@@ -55,36 +54,109 @@ export default function YogaPlanner() {
     return (
         <>
             <Navbar />
-            <Box p={8} pt={12} className='py-58' textAlign="center" style={{ backgroundColor: '#f5f5f5', borderRadius: '8px', padding: '5cm' }}>
-                <Heading as="h1" mb={4} style={{ color: '#333' }}>AI Yoga Planner</Heading>
-                <Box mb={4} style={{ padding: '16px' }}>
-                    <Text mb={2} style={{ fontSize: '18px', color: '#666' }}>Enter your details to generate a personalized yoga plan:</Text>
-                    <SimpleGrid columns={2} gap={4} justifyContent="center" style={{ padding: '2cm' }}>
-                        <Input type="number" placeholder="Weight (kg)" value={weight} onChange={(e) => setWeight(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                        <Input type="number" placeholder="Height (cm)" value={height} onChange={(e) => setHeight(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                        <Input type="number" placeholder="Age" value={age} onChange={(e) => setAge(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                        <Select value={experience} onChange={(e) => setExperience(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}>
-                            <option value="beginner" style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc', width: '50px' }}>Beginner</option>
-                            <option value="intermediate">Intermediate</option>
-                            <option value="advanced">Advanced</option>
-                        </Select>
-                    </SimpleGrid>
-                </Box>
-                <Button colorScheme="blue" onClick={generateYogaPlan} isLoading={loading} loadingText="Generating..." mt={4} style={{ padding: '10px 20px', borderRadius: '4px', border: '1px solid #ccc' }}>Generate Plan</Button>
-                {error && (
-                    <Box mt={4} color="red.500">
-                        <Text>{error}</Text>
+            <Box bg="#F4F6F1" minH="80vh" py={16} px={4}>
+                <Container maxW="2xl">
+                    <VStack spacing={2} mb={8} textAlign="center">
+                        <Heading as="h1" size="xl" color="#3A5A40">
+                            AI Yoga Planner
+                        </Heading>
+                        <Text color="gray.600" fontSize="lg">
+                            Enter your details to generate a personalized yoga plan.
+                        </Text>
+                    </VStack>
+
+                    <Box
+                        bg="white"
+                        borderRadius="xl"
+                        boxShadow="lg"
+                        p={{ base: 6, md: 10 }}
+                    >
+                        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={5}>
+                            <FormControl>
+                                <FormLabel color="gray.700">Weight (kg)</FormLabel>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 65"
+                                    value={weight}
+                                    onChange={(e) => setWeight(e.target.value)}
+                                    focusBorderColor="#3A5A40"
+                                />
+                            </FormControl>
+                            <FormControl>
+                                <FormLabel color="gray.700">Height (cm)</FormLabel>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 170"
+                                    value={height}
+                                    onChange={(e) => setHeight(e.target.value)}
+                                    focusBorderColor="#3A5A40"
+                                />
+                            </FormControl>
+                            <FormControl>
+                                <FormLabel color="gray.700">Age</FormLabel>
+                                <Input
+                                    type="number"
+                                    placeholder="e.g. 28"
+                                    value={age}
+                                    onChange={(e) => setAge(e.target.value)}
+                                    focusBorderColor="#3A5A40"
+                                />
+                            </FormControl>
+                            <FormControl>
+                                <FormLabel color="gray.700">Experience</FormLabel>
+                                <Select
+                                    value={experience}
+                                    onChange={(e) => setExperience(e.target.value)}
+                                    focusBorderColor="#3A5A40"
+                                >
+                                    <option value="beginner">Beginner</option>
+                                    <option value="intermediate">Intermediate</option>
+                                    <option value="advanced">Advanced</option>
+                                </Select>
+                            </FormControl>
+                        </SimpleGrid>
+
+                        <Button
+                            w="full"
+                            mt={8}
+                            size="lg"
+                            bg="#3A5A40"
+                            color="white"
+                            _hover={{ bg: '#242F2A' }}
+                            onClick={generateYogaPlan}
+                            isLoading={loading}
+                            loadingText="Generating..."
+                        >
+                            Generate Plan
+                        </Button>
                     </Box>
-                )}
-                {plan && (
-                    <Box mt={4}>
-                        <Heading as="h2" size="md" mb={2}>Your Yoga Plan:</Heading>
-                        <Text>{plan}</Text>
-                    </Box>
-                )}
+
+                    {loading && (
+                        <VStack mt={8} spacing={3}>
+                            <Spinner color="#3A5A40" size="lg" thickness="3px" />
+                            <Text color="gray.500">Crafting your plan…</Text>
+                        </VStack>
+                    )}
+
+                    {plan && !loading && (
+                        <Box
+                            mt={8}
+                            bg="white"
+                            borderRadius="xl"
+                            boxShadow="md"
+                            borderLeft="6px solid #3A5A40"
+                            p={{ base: 6, md: 8 }}
+                        >
+                            <Heading as="h2" size="md" mb={4} color="#3A5A40">
+                                Your Yoga Plan
+                            </Heading>
+                            <Text whiteSpace="pre-wrap" color="gray.700" lineHeight="tall">
+                                {plan}
+                            </Text>
+                        </Box>
+                    )}
+                </Container>
             </Box>
-
-
             <Footer />
         </>
     );

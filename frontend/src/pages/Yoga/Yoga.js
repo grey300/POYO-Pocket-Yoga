@@ -8,8 +8,7 @@ import DropDown from '../../components/DropDown/DropDown';
 import { POINTS, keypointConnections } from '../../utils/data';
 import { drawPoint, drawSegment } from '../../utils/helper';
 import Navbar from '../../components/NavBar';
-import axios from 'axios';
-import { useUser } from '@clerk/clerk-react';
+import apiClient from '../../utils/api';
 
 import './Yoga.css'
 
@@ -185,16 +184,13 @@ function Yoga() {
         setIsStartPose(true);
         runMovenet();
     }
-    const { user } = useUser();
+
     function stopPose() {
         setIsStartPose(false);
         clearInterval(interval);
-        console.log(currentPose)
-        // Save the best performance time to the backend
-        const clerkUserId = user.id; // Get the user's Clerk ID
-        console.log(clerkUserId)
-        axios.post('https://poyo-prj-backend.onrender.com/api/update-best-time', {
-            clerkUserId,
+        // Save the best performance time to the backend. The auth token
+        // (attached by apiClient) identifies the user server-side.
+        apiClient.post('/api/update-best-time', {
             bestPoseTime: bestPerform,
             pose_name: currentPose
         })
@@ -204,8 +200,7 @@ function Yoga() {
             .catch(error => {
                 console.error('Error updating cumulative pose time:', error);
             });
-        axios.post('https://poyo-prj-backend.onrender.com/api/update-performance', {
-            clerkUserId,
+        apiClient.post('/api/update-performance', {
             bestTime: bestPerform,
             pose_name: currentPose
         }).then(response => {

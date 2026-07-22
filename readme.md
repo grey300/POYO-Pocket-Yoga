@@ -2,7 +2,7 @@
 
 POYO is an AI-assisted yoga web application that helps users learn yoga poses, practice with live webcam feedback, generate a personalized yoga plan, and track their pose performance over time.
 
-The project combines a React frontend, an Express/MongoDB backend, Clerk authentication, TensorFlow.js pose detection, and a custom yoga pose classifier trained from image datasets.
+The project combines a React frontend, an Express/MongoDB backend, custom JWT authentication, TensorFlow.js pose detection, and a custom yoga pose classifier trained from image datasets.
 
 ## Features
 
@@ -10,7 +10,8 @@ The project combines a React frontend, an Express/MongoDB backend, Clerk authent
 - Real-time skeleton overlay powered by TensorFlow.js MoveNet.
 - Pose classification for Tree, Chair, Cobra, Warrior, Dog, and Shoulderstand.
 - Audio feedback while the selected pose is held correctly.
-- Clerk authentication for user login, signup, and profile access.
+- Custom email/password authentication (JWT + bcrypt) for signup, login, and profile access.
+- Role-based access with a separate admin portal and full user management (create, edit, promote/demote, delete).
 - User profile with cumulative practice time and best pose times.
 - Pose-specific leaderboard.
 - Yoga class pages with pose details and instructions.
@@ -24,7 +25,7 @@ The project combines a React frontend, an Express/MongoDB backend, Clerk authent
 - React 18
 - Create React App
 - React Router
-- Clerk React
+- Context-based JWT auth (token in `localStorage`)
 - TensorFlow.js
 - `@tensorflow-models/pose-detection`
 - React Webcam
@@ -32,14 +33,14 @@ The project combines a React frontend, an Express/MongoDB backend, Clerk authent
 - Tailwind CSS
 - Axios
 - Chart.js
-- OpenAI JavaScript SDK
 
 ### Backend
 
 - Node.js 20
 - Express
 - MongoDB with Mongoose
-- Clerk webhooks through Svix
+- JWT auth (`jsonwebtoken`) with `bcryptjs` password hashing
+- OpenAI SDK (server-side proxy for the AI planner)
 - CORS
 - dotenv
 
@@ -56,19 +57,22 @@ The project combines a React frontend, an Express/MongoDB backend, Clerk authent
 ```text
 .
 |-- backend/
-|   |-- server.js                 # Express API, MongoDB connection, Clerk webhook, leaderboard and performance routes
-|   |-- userModel.js              # User schema linked to Clerk user IDs
+|   |-- server.js                 # Express API: auth, user data, leaderboard, admin, AI planner routes
+|   |-- authMiddleware.js         # JWT signing + requireAuth / requireAdmin guards
+|   |-- seedAdmin.js              # Creates the first admin from env (npm run seed:admin)
+|   |-- userModel.js              # User schema: email, hashed password, role
 |   |-- bestModel.js              # Best pose time and cumulative time schema
 |   |-- performanceModel.js       # Daily per-pose performance schema
 |   `-- package.json
 |-- frontend/
-|   |-- public/                   # Static assets and app shell
+|   |-- public/                   # Static assets, app shell, served TF.js model
 |   |-- src/
-|   |   |-- components/           # Navbar, landing page, sliders, instructions, footer
-|   |   |-- pages/                # Home, Yoga, Profile, AI planner, Yoga class and pose detail pages
-|   |   |-- utils/                # Pose data, drawing helpers, images and audio
-|   |   |-- App.js                # Route definitions
-|   |   `-- index.js              # React entry point with Clerk provider
+|   |   |-- components/           # Navbar, ProtectedRoute, landing, sliders, footer
+|   |   |-- context/             # AuthContext (login/register/logout state)
+|   |   |-- pages/                # Home, Yoga, Profile, AI planner, Login, Signup, Admin
+|   |   |-- utils/                # apiClient (axios+token), pose data, helpers, images, audio
+|   |   |-- App.js                # Landing page
+|   |   `-- index.js              # React entry point with AuthProvider + routes
 |   `-- package.json
 |-- classification model/
 |   |-- yoga_poses/               # Train/test image dataset
@@ -100,24 +104,36 @@ Create environment files locally before running the app.
 
 ### Frontend
 
-Create `frontend/.env`:
+Copy `frontend/.env.example` to `frontend/.env`:
 
 ```env
-REACT_APP_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-REACT_APP_MODEL_URL=your_tensorflowjs_model_json_url
+REACT_APP_MODEL_URL=/model/model.json
+REACT_APP_API_BASE=http://localhost:4000
+REACT_APP_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
-`REACT_APP_MODEL_URL` should point to the TensorFlow.js `model.json` file exported from the pose classifier.
+`REACT_APP_GOOGLE_CLIENT_ID` enables the "Sign in with Google" button (see [Google Sign-In setup](#google-sign-in-setup)). Leave the placeholder to hide the button.
+
+`REACT_APP_MODEL_URL` points to the TensorFlow.js `model.json` served by the frontend (a copy lives in `frontend/public/model/`). `REACT_APP_API_BASE` is the single base URL for all backend requests (set it to your deployed backend in production).
 
 ### Backend
 
-Create `backend/.env`:
+Copy `backend/.env.example` to `backend/.env`:
 
 ```env
 MONGODB_URL=your_mongodb_connection_string
-CLERK_WEBHOOK_SECRET_KEY=your_clerk_webhook_secret
-PORT=80
+JWT_SECRET=change_me_to_a_long_random_string
+OPENAI_API_KEY=your_openai_api_key
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+CLIENT_ORIGIN=http://localhost:3000
+PORT=4000
+
+# Admin seed (used by: npm run seed:admin)
+ADMIN_EMAIL=admin@poyo.com
+ADMIN_PASSWORD=ChangeMe123!
 ```
+
+`JWT_SECRET` signs auth tokens — use a long random string and keep it private. The OpenAI key lives only on the backend — the AI planner calls `POST /api/generate-plan`, which proxies OpenAI so the key is never shipped to the browser. `CLIENT_ORIGIN` sets the allowed CORS origin. `ADMIN_EMAIL`/`ADMIN_PASSWORD` are used once to seed the first admin.
 
 ## Installation
 
@@ -147,8 +163,37 @@ npm run dev
 The backend defaults to:
 
 ```text
-http://localhost:80
+http://localhost:4000
 ```
+
+### Create the first admin
+
+With the backend `.env` filled in (including `ADMIN_EMAIL` / `ADMIN_PASSWORD`), seed the admin account:
+
+```bash
+cd backend
+npm run seed:admin
+```
+
+This creates (or promotes) the admin. Sign in to the admin portal at `/admin/login`.
+
+### Google Sign-In setup
+
+The "Sign in with Google" button on the login and signup pages needs a Google OAuth **Client ID**. It is optional — email/password auth works without it, and the button stays hidden until it is configured.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create (or pick) a project.
+2. Open **APIs & Services -> OAuth consent screen**, configure it as **External**, and add your email as a test user.
+3. Open **APIs & Services -> Credentials -> Create Credentials -> OAuth client ID**.
+4. Application type: **Web application**.
+5. Under **Authorized JavaScript origins** add:
+   - `http://localhost:3000`
+6. Click create and copy the **Client ID** (looks like `xx….apps.googleusercontent.com`).
+7. Put the same Client ID in both env files:
+   - `backend/.env` -> `GOOGLE_CLIENT_ID=...`
+   - `frontend/.env` -> `REACT_APP_GOOGLE_CLIENT_ID=...`
+8. Restart both servers (frontend env vars are read at build/start time).
+
+The frontend renders Google's button, receives a signed ID token, and posts it to `POST /api/auth/google`. The backend verifies the token against `GOOGLE_CLIENT_ID`, then finds or creates the user and issues a normal POYO JWT. If a Google email matches an existing email/password account, the Google identity is linked to it.
 
 Start the frontend:
 
@@ -168,23 +213,46 @@ http://localhost:3000
 ### Frontend Pages
 
 - `/` - Home page
-- `/yoga` - Live webcam yoga session
-- `/profile` - Authenticated profile, best times, total time, and leaderboard
+- `/login` - Sign in
+- `/signup` - Create an account
+- `/yoga` - Live webcam yoga session (requires login)
+- `/profile` - Profile, best times, total time, and leaderboard (requires login)
 - `/about` - AI yoga planner
 - `/yogaclass` - Yoga class pose list
 - `/yoga-pose/1` to `/yoga-pose/8` - Individual pose detail pages
-- `/sign-in/*` - Clerk sign in
-- `/sign-up/*` - Clerk sign up
+- `/admin/login` - Admin portal sign in
+- `/admin` - Admin dashboard with user management (requires admin role)
 
 ### Backend API
 
-- `POST /api/webhooks` - Clerk webhook receiver
+Auth:
+
+- `POST /api/auth/register` - Create an account, returns a JWT
+- `POST /api/auth/login` - Sign in, returns a JWT
+- `POST /api/auth/google` - Verify a Google ID token, find/create the user, returns a JWT
+- `GET /api/auth/me` - Current user from the token
+
+User data (require a valid token; the user is derived from the token):
+
 - `POST /api/update-best-time` - Updates cumulative pose time and best pose field
-- `GET /api/best-times/:userId` - Gets best time records for a user
-- `GET /api/user-profile/:userId` - Gets user profile data with stored performance fields
-- `GET /api/leaderboard?pose=PoseName` - Gets leaderboard data for a selected pose
 - `POST /api/update-performance` - Updates daily performance for a pose
-- `GET /api/get-performance/:clerkid` - Gets transformed performance data for charts or profile views
+- `GET /api/profile` - Current user's profile plus best times
+- `GET /api/best-times` - Current user's best time records
+- `GET /api/get-performance` - Current user's transformed performance data
+- `GET /api/leaderboard?pose=PoseName` - Leaderboard for a selected pose
+
+Admin (require an admin token):
+
+- `GET /api/admin/stats` - User counts and total practice time
+- `GET /api/admin/users?search=...` - List/search users
+- `GET /api/admin/users/:id` - Single user with their best times
+- `POST /api/admin/users` - Create a user
+- `PUT /api/admin/users/:id` - Update a user (name, email, role, password)
+- `DELETE /api/admin/users/:id` - Delete a user and their practice data
+
+Other:
+
+- `POST /api/generate-plan` - Generates an AI yoga plan via a server-side OpenAI proxy
 
 ## Model Training Workflow
 
@@ -214,15 +282,14 @@ The training script builds a dense neural network from normalized landmark embed
 
 ## Current Implementation Notes
 
-- The frontend currently uses both local and deployed backend URLs. `Profile.js` reads from `http://localhost:80`, while `Yoga.js` posts to the deployed Render backend. For a clean deployment, move the API base URL into one shared environment variable.
-- The backend CORS origin is hardcoded to `http://localhost:3000`. Add the production frontend URL before deploying.
-- The AI planner should use an environment variable or backend proxy for OpenAI requests. Do not expose private API keys in browser code.
-- The backend currently has no `/api/update-pose-time` route, although `Profile.js` contains a helper that references it.
+- All frontend backend calls now go through a single `REACT_APP_API_BASE` (see `frontend/src/utils/api.js`).
+- The backend CORS origin is configurable via `CLIENT_ORIGIN`. Set it to the production frontend URL before deploying.
+- The AI planner calls the backend `POST /api/generate-plan` proxy, so the OpenAI key stays server-side and is never shipped to the browser.
 - Camera access requires HTTPS in most deployed browser environments, except localhost.
 
 ## Security Notes
 
-- Keep MongoDB, Clerk, and OpenAI secrets out of committed source files.
+- Keep MongoDB, JWT, and OpenAI secrets out of committed source files.
 - If a secret has ever been committed or exposed in frontend code, rotate it immediately.
 - Prefer calling OpenAI from the backend instead of the browser so the API key is never shipped to users.
 
@@ -239,9 +306,10 @@ npm test        # Run CRA test watcher
 ### Backend
 
 ```bash
-npm run dev     # Start backend with nodemon
-npm start       # Start backend with nodemon server.js
-npm test        # Placeholder test script
+npm run dev         # Start backend with nodemon
+npm start           # Start backend with nodemon server.js
+npm run seed:admin  # Create/promote the admin from ADMIN_EMAIL/ADMIN_PASSWORD
+npm test            # Placeholder test script
 ```
 
 ## Project Goal

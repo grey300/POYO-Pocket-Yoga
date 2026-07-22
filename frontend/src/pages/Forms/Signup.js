@@ -1,148 +1,143 @@
-import React,{useState} from 'react'
-import { Link } from 'react-router-dom';
-import Navbar from '../../components/NavBar'
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../../components/NavBar';
 import image1 from '../../utils/images/pg.png';
+import { useAuth } from '../../context/AuthContext';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 
 const SignUp = () => {
+  const navigate = useNavigate();
+  const { register, loginWithGoogle } = useAuth();
+
+  const handleGoogle = async (credential) => {
+    setError('');
+    try {
+      await loginWithGoogle(credential);
+      navigate('/profile', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google sign-up failed.');
+    }
+  };
+
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
-  
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-     
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
 
-    if (formData.fullName.trim() === '') {
-      alert('Please enter your full name'); 
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      setError('Please enter your first and last name.');
       return;
     }
-  
-    if (formData.email.trim() === '') {
-      alert('Please enter your email address');
+    if (!formData.email.trim()) {
+      setError('Please enter your email address.');
       return;
     }
-
-    if (formData.phone.trim() === '') {
-      alert('Please enter your phone number');
-      return;
-    }
-
     const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/;
     if (!passwordRegex.test(formData.password)) {
-      alert('Password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)');
+      setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (!@#$%^&*).');
       return;
     }
-  
-    if (formData.confirmPassword.trim() === '') {
-      alert('Please confirm your password');
-      return;
-    }
-  
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match.');
       return;
     }
 
-    console.log(formData);
+    setLoading(true);
+    try {
+      await register({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+      navigate('/profile', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Sign up failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const inputClass = 'w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#3A5A40]';
 
   return (
     <div>
-        <Navbar/>
+      <Navbar />
+      <div className="flex flex-col md:flex-row justify-center items-center min-h-[80vh] pt-16">
+        <div className="md:w-1/2 p-6 order-1">
+          <img src={image1} alt="img" className="h-auto" />
+        </div>
+        <div className="md:w-1/2 p-6 order-1 max-w-md">
+          <p className="mb-2 font-bold text-2xl text-[#3A5A40]">Create your account</p>
+          <p className="mb-6 text-gray-600">Welcome! Please enter your details.</p>
 
-    <div className="flex flex-col md:flex-row justify-center items-center">
-    <div className="md:w-1/2 p-6 order-1">
-      <img src={image1} alt="img" className="h-auto " />
-    </div>
+          {error && (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+              {error}
+            </div>
+          )}
 
-      <div className="md:w-1/2 p-6 order-1 mr-8">
-        <p className="mb-5 font-bold text-xl">Welcome</p>
-        <p></p>
-        <p className="mb-9">Welcome new User! Please enter your details</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="fullName" className="block mb-1">Full Name</label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-2/4 border border-gray-300 rounded py-2 px-3 focus:outline-none focus:border-blue-500"
-              required
-            />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="firstName" className="block mb-1 text-sm font-medium text-gray-700">First Name</label>
+                <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} required />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block mb-1 text-sm font-medium text-gray-700">Last Name</label>
+                <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} required />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="email" className="block mb-1 text-sm font-medium text-gray-700">Email Address</label>
+              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} required />
+            </div>
+            <div>
+              <label htmlFor="password" className="block mb-1 text-sm font-medium text-gray-700">Password</label>
+              <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} className={inputClass} required />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="block mb-1 text-sm font-medium text-gray-700">Confirm Password</label>
+              <input type="password" id="confirmPassword" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={inputClass} required />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#3A5A40] text-white py-2.5 px-4 rounded-lg hover:bg-[#242F2A] disabled:opacity-60"
+            >
+              {loading ? 'Creating account…' : 'Sign Up'}
+            </button>
+          </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="h-px bg-gray-200 flex-1" />
+            <span className="text-xs text-gray-400">OR</span>
+            <div className="h-px bg-gray-200 flex-1" />
           </div>
-      
-          <div>
-            <label htmlFor="email" className="block mb-1">Email Address</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-2/4 border border-gray-300 rounded py-2 px-3 focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="phone" className="block mb-1">Phone Number</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-2/4 border border-gray-300 rounded py-2 px-3 focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block mb-1">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-2/4 border border-gray-300 rounded py-2 px-3 focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="confirmPassword" className="block mb-1">Confirm Password</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-2/4 border border-gray-300 rounded py-2 px-3 focus:outline-none focus:border-blue-500"
-              required
-            />
-          </div>
-          <button type="submit" className="w-2/4 bg-green-800 text-white py-2 px-4 rounded hover:bg-green-900 focus:outline-none focus:bg-blue-600">
-            Sign Up
-          </button>
-        </form>
-        <p className="mt-4">Have an account? <Link to="/login" className="text-red-500">Sign in</Link></p>
+
+          <GoogleSignInButton onCredential={handleGoogle} onError={setError} />
+
+          <p className="mt-4 text-gray-600">
+            Have an account? <Link to="/login" className="text-[#3A5A40] font-semibold">Sign in</Link>
+          </p>
+        </div>
       </div>
-    </div>
     </div>
   );
 };
 
 export default SignUp;
-

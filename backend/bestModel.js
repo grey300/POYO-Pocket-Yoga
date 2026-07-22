@@ -1,22 +1,9 @@
-// import mongoose from 'mongoose';
-
-// const bestSchema = new mongoose.Schema(
-//     {
-//         clerkUserId: { type: String, unique: true, required: true },
-//         bestPoseTime: { type: Number, required: true },
-//     },
-//     { timestamps: true }
-// );
-
-// const Best = mongoose.model('Best', bestSchema);
-
-// export default Best;
-
 import mongoose from 'mongoose';
 
 const bestSchema = new mongoose.Schema({
-    clerkUserId: {
-        type: String,
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Users',
         required: true,
         unique: true,
     },
@@ -25,32 +12,12 @@ const bestSchema = new mongoose.Schema({
         required: true,
         default: 0,
     },
-
-    Tree_best:{
-        type: String,
-        required: false
-    },
-    Chair_best:{
-        type: String,
-        required: false
-    },
-    Cobra_best:{
-        type: String,
-        required: false
-    },
-    Warrior_best:{
-        type: String,
-        required: false
-    },
-    Dog_best:{
-        type: String,
-        required: false
-    },
-    Shoulderstand_best:{
-        type: String,
-        required: false
-    }
-    
+    Tree_best: { type: Number, required: false },
+    Chair_best: { type: Number, required: false },
+    Cobra_best: { type: Number, required: false },
+    Warrior_best: { type: Number, required: false },
+    Dog_best: { type: Number, required: false },
+    Shoulderstand_best: { type: Number, required: false },
 });
 
 const Best = mongoose.model('Best', bestSchema);

@@ -1,196 +1,129 @@
-import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import NavBar from '../../components/NavBar';
 import Footer from '../../components/Footer';
-import { useUser } from '@clerk/clerk-react';
-import { UserButton } from '@clerk/clerk-react';
 import { parseISO, isValid } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire } from '@fortawesome/free-solid-svg-icons';
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import apiClient from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
-const poseList = [
-    'Tree', 'Chair', 'Cobra', 'Warrior', 'Dog', 'Shoulderstand'
-];
+const poseList = ['Tree', 'Chair', 'Cobra', 'Warrior', 'Dog', 'Shoulderstand'];
 
 const Profile = () => {
-    const { user } = useUser();
-    const [bestPoseTime, setBestPoseTime] = useState(null);
+    const { user, logout } = useAuth();
     const [cumulativePoseTime, setCumulativePoseTime] = useState(null);
     const [leaderboard, setLeaderboard] = useState([]);
     const [selectedPose, setSelectedPose] = useState(poseList[0]);
     const [userBestTimes, setUserBestTimes] = useState({});
-    const [bestTimesData, setBestTimesData] = useState([]);
-    const [performanceData, setPerformanceData] = useState({});
     const [streakCount, setStreakCount] = useState(0);
     const [lastUpdated, setLastUpdated] = useState(null);
 
-    const sortedLeaderboard = [...leaderboard].sort((a, b) => b[`${selectedPose}_best`] - a[`${selectedPose}_best`]);
+    const sortedLeaderboard = [...leaderboard].sort(
+        (a, b) => (b[`${selectedPose}_best`] || 0) - (a[`${selectedPose}_best`] || 0)
+    );
 
     useEffect(() => {
         const fetchUserData = async () => {
-            if (!user) return;
-
-            const clerkUserId = user.id;
-
             try {
-                const userProfileResponse = await axios.get(`http://localhost:80/api/user-profile/${clerkUserId}`);
-                const userData = userProfileResponse.data.user;
-
-                setBestPoseTime(userData[`${selectedPose}_best`]);
+                const { data } = await apiClient.get('/api/profile');
+                const userData = data.user;
                 setCumulativePoseTime(userData.cumulativePoseTime);
-
-                const bestTimes = poseList.reduce((acc, pose) => {
-                    acc[pose] = userData[`${pose}_best`] || 0;
-                    return acc;
-                }, {});
-
-                setUserBestTimes(bestTimes);
-                setLastUpdated(userData.lastUpdated);
+                setUserBestTimes(
+                    poseList.reduce((acc, pose) => {
+                        acc[pose] = userData[`${pose}_best`] || 0;
+                        return acc;
+                    }, {})
+                );
+                setLastUpdated(userData.updatedAt);
             } catch (error) {
                 console.error('Error fetching user profile:', error);
             }
         };
-
         fetchUserData();
-    }, [user, selectedPose]);
+    }, []);
 
     useEffect(() => {
         const fetchLeaderboardData = async () => {
             try {
-                const response = await axios.get(`http://localhost:80/api/leaderboard?pose=${selectedPose}`);
-                setLeaderboard(response.data.leaderboard);
+                const { data } = await apiClient.get(`/api/leaderboard?pose=${selectedPose}`);
+                setLeaderboard(data.leaderboard);
             } catch (error) {
                 console.error('Error fetching leaderboard data:', error);
             }
         };
-
         fetchLeaderboardData();
     }, [selectedPose]);
 
     useEffect(() => {
-        const fetchBestTimesData = async () => {
-            if (!user) return;
-
-            const clerkUserId = user.id;
-
-            try {
-                const response = await axios.get(`http://localhost:80/api/best-times/${clerkUserId}`);
-                setBestTimesData(response.data.bestTimes);
-            } catch (error) {
-                console.error('Error fetching best times data:', error);
-            }
-        };
-
-        fetchBestTimesData();
-    }, [user]);
-
-    useEffect(() => {
-        const fetchPerformanceData = async () => {
-            if (!user) return;
-
-            const clerkUserId = user.id;
-            try {
-                const response = await axios.get(`http://localhost:80/api/get-performance/${clerkUserId}`);
-                setPerformanceData(response.data.performanceData);
-            } catch (error) {
-                console.error('Error fetching performance data:', error);
-            }
-        };
-
-        fetchPerformanceData();
-    }, [user]);
-
-    useEffect(() => {
-        const checkStreak = () => {
-            if (!lastUpdated) return;
-
-            const lastUpdateDate = parseISO(lastUpdated);
-            const currentDate = new Date();
-
-            if (isValid(lastUpdateDate)) {
-                const daysDifference = Math.floor((currentDate - lastUpdateDate) / (1000 * 60 * 60 * 24));
-
-                if (daysDifference === 1) {
-                    setStreakCount(prevCount => prevCount + 1);
-                } else if (daysDifference > 1) {
-                    setStreakCount(0);
-                }
-            }
-        };
-
-        checkStreak();
+        if (!lastUpdated) return;
+        const lastUpdateDate = parseISO(lastUpdated);
+        if (isValid(lastUpdateDate)) {
+            const daysDifference = Math.floor((new Date() - lastUpdateDate) / (1000 * 60 * 60 * 24));
+            if (daysDifference === 1) setStreakCount((prev) => prev + 1);
+            else if (daysDifference > 1) setStreakCount(0);
+        }
     }, [lastUpdated]);
 
-    const notifyMotivation = (pose, newBestTime) => {
-        toast.success(`🎉 New personal best for ${pose}: ${newBestTime}s! Keep it up!`);
-    };
+    const rankMedal = (index) => ['🥇', '🥈', '🥉'][index] || index + 1;
 
-    const updatePoseTime = async (pose, newTime) => {
-        if (!user) return;
-
-        const clerkUserId = user.id;
-        const previousBestTime = userBestTimes[pose];
-
-        try {
-            const response = await axios.post(`http://localhost:80/api/update-pose-time`, {
-                clerkUserId,
-                pose,
-                newTime
-            });
-
-            if (response.data.success) {
-                if (newTime > previousBestTime) {
-                    notifyMotivation(pose, newTime);
-                }
-                setUserBestTimes(prevTimes => ({
-                    ...prevTimes,
-                    [pose]: Math.max(prevTimes[pose], newTime)
-                }));
-            }
-        } catch (error) {
-            console.error('Error updating pose time:', error);
-        }
-    };
+    if (!user) return null;
 
     return (
-        <div>
+        <div className="bg-[#F4F6F1] min-h-screen">
             <NavBar />
             <ToastContainer />
-            <div className="container mx-auto py-20 px-56">
-                <div className="flex flex-wrap -mx-2 mb-10">
-                    {user && (
-                        <div className="w-full lg:w-1/2 px-2 mb-4 lg:mb-0">
-                            <div className="relative profile-section bg-[#A5B28F] p-5 rounded-lg shadow-lg">
-                                <div className="absolute top-0 left-0 m-4 flex items-center space-x-2">
-                                    <FontAwesomeIcon icon={faFire} className="text-red-500" />
-                                    <span className="text-lg font-bold">{streakCount}</span>
+            <div className="max-w-6xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="relative bg-white rounded-2xl shadow-md overflow-hidden">
+                        <div className="bg-[#3A5A40] h-24" />
+                        <div className="absolute top-4 right-4 flex items-center space-x-1 bg-white/90 rounded-full px-3 py-1 shadow">
+                            <FontAwesomeIcon icon={faFire} className="text-orange-500" />
+                            <span className="text-sm font-bold text-gray-800">{streakCount}</span>
+                        </div>
+                        <div className="px-6 pb-6">
+                            <div className="-mt-10 flex flex-col items-center">
+                                <div className="w-20 h-20 rounded-full bg-[#A5B28F] text-white flex items-center justify-center text-2xl font-bold ring-4 ring-white">
+                                    {`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()}
                                 </div>
-                                <div className="profile-image text-center">
-                                    <div className="user-button-large mt-2">
-                                        <UserButton afterSignOutUrl='/' />
-                                    </div>
-                                </div>
-                                <h2 className="text-center text-xl font-bold mt-3">{`${user.firstName} ${user.lastName}`}</h2>
-                                <div className="total-time bg-gray-200 p-3 mt-3 rounded-lg text-center">
-                                    <h3>Total Time:</h3>
-                                    <span className="text-3xl font-bold">{cumulativePoseTime || 0}</span> s
-                                </div>
-                                <div className="best-times mt-5">
-                                    <h3 className="text-center text-xl font-bold">Best Times for Each Pose</h3>
-                                    <table className="min-w-full bg-white mt-3 border">
+                                <h2 className="text-xl font-bold mt-3 text-gray-800">
+                                    {`${user.firstName} ${user.lastName}`}
+                                </h2>
+                                <p className="text-sm text-gray-500">{user.email}</p>
+                                <button
+                                    onClick={logout}
+                                    className="mt-3 text-sm text-red-600 hover:underline"
+                                >
+                                    Log out
+                                </button>
+                            </div>
+
+                            <div className="bg-[#EDF1E8] p-4 mt-5 rounded-xl text-center">
+                                <h3 className="text-sm uppercase tracking-wide text-gray-500">Total Practice Time</h3>
+                                <p className="mt-1">
+                                    <span className="text-4xl font-extrabold text-[#3A5A40]">{cumulativePoseTime || 0}</span>
+                                    <span className="text-gray-500 ml-1">s</span>
+                                </p>
+                            </div>
+
+                            <div className="mt-6">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">Best Times for Each Pose</h3>
+                                <div className="overflow-hidden rounded-xl border border-gray-100">
+                                    <table className="min-w-full text-sm">
                                         <thead>
-                                            <tr>
-                                                <th className="py-2 px-4 bg-gray-200 border">Pose</th>
-                                                <th className="py-2 px-4 bg-gray-200 border">Best Time (s)</th>
+                                            <tr className="bg-[#EDF1E8] text-gray-600">
+                                                <th className="py-2 px-4 text-left">Pose</th>
+                                                <th className="py-2 px-4 text-right">Best Time (s)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {poseList.map(pose => (
-                                                <tr key={pose} className="text-center">
-                                                    <td className="border px-4 py-2">{pose}</td>
-                                                    <td className="border px-4 py-2">{userBestTimes[pose]} s</td>
+                                            {poseList.map((pose, i) => (
+                                                <tr key={pose} className={i % 2 ? 'bg-white' : 'bg-gray-50'}>
+                                                    <td className="px-4 py-2 text-gray-700">{pose}</td>
+                                                    <td className="px-4 py-2 text-right font-semibold text-gray-800">
+                                                        {userBestTimes[pose] || 0} s
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -198,43 +131,57 @@ const Profile = () => {
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
+
                     {/* Leaderboard Section */}
-                    <div className="w-full lg:w-1/2 px-2">
-                        <div className="leaderboard-section bg-[#A5B28F] p-5 rounded-lg shadow-lg">
-                            <h1 className="text-2xl font-bold text-center mb-5">LEADERBOARD</h1>
+                    <div className="bg-white rounded-2xl shadow-md p-6">
+                        <h1 className="text-2xl font-extrabold text-center text-[#3A5A40] mb-5">Leaderboard</h1>
 
-                            {/* Pose Filter Dropdown */}
-                            <div className="mb-5">
-                                <label htmlFor="pose-select" className="block mb-2">Select Pose:</label>
-                                <select
-                                    id="pose-select"
-                                    value={selectedPose}
-                                    onChange={(e) => setSelectedPose(e.target.value)}
-                                    className="block w-full p-2 border rounded"
-                                >
-                                    {poseList.map(pose => (
-                                        <option key={pose} value={pose}>{pose}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="mb-5">
+                            <label htmlFor="pose-select" className="block mb-2 text-sm font-medium text-gray-600">
+                                Select Pose
+                            </label>
+                            <select
+                                id="pose-select"
+                                value={selectedPose}
+                                onChange={(e) => setSelectedPose(e.target.value)}
+                                className="block w-full p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#3A5A40] focus:outline-none"
+                            >
+                                {poseList.map((pose) => (
+                                    <option key={pose} value={pose}>{pose}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                            <table className="min-w-full bg-white">
+                        <div className="overflow-hidden rounded-xl border border-gray-100">
+                            <table className="min-w-full text-sm">
                                 <thead>
-                                    <tr>
-                                        <th className="py-2 px-4 bg-gray-200">Rank</th>
-                                        <th className="py-2 px-4 bg-gray-200">Name</th>
-                                        <th className="py-2 px-4 bg-gray-200">Best Time ({selectedPose}) (s)</th>
+                                    <tr className="bg-[#EDF1E8] text-gray-600">
+                                        <th className="py-2 px-4">Rank</th>
+                                        <th className="py-2 px-4 text-left">Name</th>
+                                        <th className="py-2 px-4 text-right">{selectedPose} (s)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sortedLeaderboard.map((entry, index) => (
-                                        <tr key={entry.clerkUserId} className={`${index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}`}>
-                                            <td className="border px-4 py-2 text-center">{index + 1}</td>
-                                            <td className="border px-4 py-2 text-center">{`${entry.userDetails.firstName} ${entry.userDetails.lastName}`}</td>
-                                            <td className="border px-4 py-2 text-center">{entry[`${selectedPose}_best`]} Sec</td>
+                                    {sortedLeaderboard.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-4 py-6 text-center text-gray-400">
+                                                No entries yet — be the first!
+                                            </td>
                                         </tr>
-                                    ))}
+                                    ) : (
+                                        sortedLeaderboard.map((entry, index) => (
+                                            <tr key={entry.userId} className={index % 2 ? 'bg-white' : 'bg-gray-50'}>
+                                                <td className="px-4 py-2 text-center">{rankMedal(index)}</td>
+                                                <td className="px-4 py-2 text-gray-700">
+                                                    {`${entry.userDetails.firstName} ${entry.userDetails.lastName}`}
+                                                </td>
+                                                <td className="px-4 py-2 text-right font-semibold text-gray-800">
+                                                    {entry[`${selectedPose}_best`] || 0}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@vercel/analytics';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -89,10 +90,12 @@ const AdminDashboard = () => {
         try {
             if (modal === 'create') {
                 await apiClient.post('/api/admin/users', form);
+                track('admin_user_created', { role: form.role });
             } else {
                 const payload = { ...form };
                 if (!payload.password) delete payload.password;
                 await apiClient.put(`/api/admin/users/${editingId}`, payload);
+                track('admin_user_updated', { role: form.role });
             }
             closeModal();
             await Promise.all([fetchUsers(search.trim()), fetchStats()]);
@@ -107,6 +110,7 @@ const AdminDashboard = () => {
         if (!window.confirm(`Delete ${u.firstName} ${u.lastName} (${u.email})? This also removes their practice data.`)) return;
         try {
             await apiClient.delete(`/api/admin/users/${u._id}`);
+            track('admin_user_deleted');
             await Promise.all([fetchUsers(search.trim()), fetchStats()]);
         } catch (err) {
             alert(err.response?.data?.message || 'Delete failed.');

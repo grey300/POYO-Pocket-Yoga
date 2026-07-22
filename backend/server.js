@@ -24,22 +24,41 @@ const googleClientId =
         : null;
 const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
-mongoose
-    .connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => {
-        console.log('Connected to DB');
-        app.listen(port, () => {
-            console.log(`Server is listening at http://localhost:${port}`);
-        });
-    })
-    .catch((err) => {
-        console.log(err.message);
-    });
-
 const app = express();
 
 app.use(cors({ origin: clientOrigin }));
 app.use(express.json());
+
+// Cache the Mongo connection so serverless cold starts reuse a single
+// connection instead of opening a new one on every invocation (which would
+// exhaust MongoDB Atlas connection limits).
+let dbPromise = null;
+function connectDB() {
+    if (!dbPromise) {
+        dbPromise = mongoose
+            .connect(process.env.MONGODB_URL)
+            .then((conn) => {
+                console.log('Connected to DB');
+                return conn;
+            })
+            .catch((err) => {
+                dbPromise = null; // allow a retry on the next request
+                throw err;
+            });
+    }
+    return dbPromise;
+}
+
+// Ensure the database is connected before handling any request.
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        console.error('DB connection error:', err.message);
+        res.status(503).json({ success: false, message: 'Database unavailable' });
+    }
+});
 
 /* ----------------------------- Auth routes ----------------------------- */
 
@@ -455,3 +474,15 @@ app.delete('/api/admin/users/:id', requireAuth, requireAdmin, async (req, res) =
         res.status(500).json({ success: false, message: err.message });
     }
 });
+
+/* -------------------------------- Startup ------------------------------- */
+
+// Kick off the first DB connection eagerly (non-blocking).
+connectDB().catch((err) => console.error('Initial DB connection failed:', err.message));
+
+// Listen locally and on hosts that run the process (Vercel Node runtime, Render).
+app.listen(port, () => {
+    console.log(`Server is listening at http://localhost:${port}`);
+});
+
+export default app;

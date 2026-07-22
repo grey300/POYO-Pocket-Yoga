@@ -14,8 +14,12 @@ dotenv.config();
 const port = process.env.PORT || 4000;
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
-const openai = process.env.OPENAI_API_KEY
-    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Groq via its OpenAI-compatible endpoint, so we keep the OpenAI SDK.
+const openai = process.env.GROQ_API_KEY
+    ? new OpenAI({
+        apiKey: process.env.GROQ_API_KEY,
+        baseURL: 'https://api.groq.com/openai/v1',
+    })
     : null;
 
 const googleClientId =
@@ -321,7 +325,7 @@ app.post('/api/generate-plan', async (req, res) => {
     if (!openai) {
         return res.status(503).json({
             success: false,
-            message: 'AI planner is not configured. Set OPENAI_API_KEY on the server.',
+            message: 'AI planner is not configured. Set GROQ_API_KEY on the server.',
         });
     }
 
@@ -335,7 +339,7 @@ app.post('/api/generate-plan', async (req, res) => {
                     content: `Generate a personalized yoga plan for a ${age}-year-old person with a weight of ${weight}kg and a height of ${height}cm. They have ${experience} experience level in yoga. Only use Tree, Chair, Cobra, Warrior, Dog, Shoulderstand poses.`,
                 },
             ],
-            model: 'gpt-3.5-turbo-0125',
+            model: 'llama-3.3-70b-versatile',
             max_tokens: 300,
             temperature: 0.7,
         });

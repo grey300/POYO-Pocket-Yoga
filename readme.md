@@ -1,110 +1,262 @@
-# POYO - Pocket Yoga
+# POYO — Pocket Yoga
 
-POYO is an AI-assisted yoga web application that helps users learn yoga poses, practice with live webcam feedback, generate a personalized yoga plan, and track their pose performance over time.
+POYO is an AI-assisted yoga web app. You pick a pose, turn on your webcam, and the app watches your body in real time: it draws a live skeleton over you, recognizes whether you're actually holding the selected pose, and — when you are — turns the skeleton green, starts a timer, and plays audio feedback. Your best hold times are saved, ranked on a leaderboard, and there's an AI planner that builds a personalized routine plus an admin portal to manage users.
 
-The project combines a React frontend, an Express/MongoDB backend, custom JWT authentication, TensorFlow.js pose detection, and a custom yoga pose classifier trained from image datasets.
+Under the hood it combines a **React** frontend, an **Express + MongoDB** backend with **custom JWT authentication**, **TensorFlow.js** running a pose model in the browser, and a **custom-trained pose classifier** built from an image dataset.
+
+---
+
+## Table of contents
+
+- [Features](#features)
+- [How it works (the 10-second version)](#how-it-works-the-10-second-version)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [The classification model (in depth)](#the-classification-model-in-depth)
+- [Environment variables](#environment-variables)
+- [Local setup](#local-setup)
+- [Admin account](#admin-account)
+- [Google Sign-In setup](#google-sign-in-setup)
+- [AI planner (Groq)](#ai-planner-groq)
+- [API reference](#api-reference)
+- [Deployment (Vercel + MongoDB Atlas)](#deployment-vercel--mongodb-atlas)
+- [Analytics](#analytics)
+- [Security notes](#security-notes)
+
+---
 
 ## Features
 
-- Live yoga pose practice through webcam input.
-- Real-time skeleton overlay powered by TensorFlow.js MoveNet.
-- Pose classification for Tree, Chair, Cobra, Warrior, Dog, and Shoulderstand.
-- Audio feedback while the selected pose is held correctly.
-- Custom email/password authentication (JWT + bcrypt) for signup, login, and profile access.
-- Role-based access with a separate admin portal and full user management (create, edit, promote/demote, delete).
-- User profile with cumulative practice time and best pose times.
-- Pose-specific leaderboard.
-- Yoga class pages with pose details and instructions.
-- AI yoga planner that generates a plan from age, height, weight, and experience level.
-- Offline model training and preprocessing scripts for yoga pose classification.
+- **Live pose practice** through your webcam with a real-time skeleton overlay.
+- **Pose recognition** for Tree, Chair, Cobra, Warrior, Dog, and Shoulderstand.
+- **Hold timer + audio feedback** that only runs while you actually hold the pose correctly.
+- **Custom email/password auth** (JWT + bcrypt) — sign up, log in, profiles.
+- **Google Sign-In** (optional) via Google Identity Services.
+- **Personal profile** with cumulative practice time and best time per pose.
+- **Leaderboard** per pose.
+- **AI yoga planner** that generates a routine from your age, height, weight, and experience.
+- **Admin portal** with full user management (create, edit, promote/demote, delete) and usage stats.
+- **Offline training pipeline** to (re)build the pose classifier from your own images.
 
-## Tech Stack
+---
 
-### Frontend
+## How it works (the 10-second version)
 
-- React 18
-- Create React App
-- React Router
-- Context-based JWT auth (token in `localStorage`)
-- TensorFlow.js
-- `@tensorflow-models/pose-detection`
-- React Webcam
-- Chakra UI
-- Tailwind CSS
-- Axios
-- Chart.js
+```
+Webcam frame
+   │
+   ▼
+MoveNet (TensorFlow.js)  ──►  17 body keypoints (x, y, confidence)
+   │
+   ▼
+Normalize landmarks       ──►  34-number "pose embedding" (position/scale independent)
+   │
+   ▼
+Pose classifier (TF.js)   ──►  probability for each pose class
+   │
+   ▼
+If P(selected pose) > 0.97  ──►  skeleton turns green, timer runs, audio plays
+   │
+   ▼
+On stop: best time is saved to MongoDB (cumulative time, per-pose best, leaderboard)
+```
 
-### Backend
+Everything from the webcam to the prediction happens **in the browser** — no video ever leaves your device. Only the final numbers (your best hold time) are sent to the backend.
 
-- Node.js 20
-- Express
+---
+
+## Tech stack
+
+**Frontend**
+- React 18 (Create React App), React Router
+- Context-based JWT auth (token stored in `localStorage`)
+- TensorFlow.js + `@tensorflow-models/pose-detection` (MoveNet)
+- `react-webcam`, Chakra UI, Tailwind CSS, Axios, Chart.js
+- Vercel Analytics
+
+**Backend**
+- Node.js 20, Express
 - MongoDB with Mongoose
-- JWT auth (`jsonwebtoken`) with `bcryptjs` password hashing
-- OpenAI SDK (server-side proxy for the AI planner)
-- CORS
-- dotenv
+- Auth: `jsonwebtoken` (JWT) + `bcryptjs` (password hashing)
+- `google-auth-library` (verifies Google sign-in tokens)
+- OpenAI SDK pointed at **Groq** (free, OpenAI-compatible) for the AI planner
 
-### Machine Learning
-
-- Python
-- TensorFlow / Keras
-- TensorFlow Lite MoveNet Thunder
-- TensorFlow.js model export
+**Machine learning (offline)**
+- Python, TensorFlow / Keras
+- MoveNet Thunder (TensorFlow Lite) for keypoint detection
 - OpenCV, pandas, NumPy, scikit-learn
+- `tensorflowjs` to export the trained model for the browser
 
-## Project Structure
+---
+
+## Project structure
 
 ```text
 .
-|-- backend/
-|   |-- server.js                 # Express API: auth, user data, leaderboard, admin, AI planner routes
-|   |-- authMiddleware.js         # JWT signing + requireAuth / requireAdmin guards
-|   |-- seedAdmin.js              # Creates the first admin from env (npm run seed:admin)
-|   |-- userModel.js              # User schema: email, hashed password, role
-|   |-- bestModel.js              # Best pose time and cumulative time schema
-|   |-- performanceModel.js       # Daily per-pose performance schema
-|   `-- package.json
-|-- frontend/
-|   |-- public/                   # Static assets, app shell, served TF.js model
-|   |-- src/
-|   |   |-- components/           # Navbar, ProtectedRoute, landing, sliders, footer
-|   |   |-- context/             # AuthContext (login/register/logout state)
-|   |   |-- pages/                # Home, Yoga, Profile, AI planner, Login, Signup, Admin
-|   |   |-- utils/                # apiClient (axios+token), pose data, helpers, images, audio
-|   |   |-- App.js                # Landing page
-|   |   `-- index.js              # React entry point with AuthProvider + routes
-|   `-- package.json
-|-- classification model/
-|   |-- yoga_poses/               # Train/test image dataset
-|   |-- proprocessing.py          # Extracts MoveNet landmarks into CSV files
-|   |-- training.py               # Trains the pose classification model
-|   |-- movenet.py                # TFLite MoveNet wrapper
-|   |-- data.py                   # Pose data types and helpers
-|   |-- train_data.csv
-|   |-- test_data.csv
-|   |-- FNN_model.keras
-|   |-- CNN_model.keras
-|   `-- movenet_thunder.tflite
-`-- readme.md
+├── backend/
+│   ├── server.js              # Express API: auth, user data, leaderboard, admin, AI planner
+│   ├── authMiddleware.js      # JWT signing + requireAuth / requireAdmin guards
+│   ├── seedAdmin.js           # Creates the first admin (npm run seed:admin)
+│   ├── userModel.js           # User schema: email, hashed password, role, googleId
+│   ├── bestModel.js           # Per-user best pose times + cumulative time
+│   └── performanceModel.js    # Daily per-pose performance
+├── frontend/
+│   ├── public/
+│   │   └── model/             # The trained TF.js classifier served to the browser
+│   ├── src/
+│   │   ├── components/        # NavBar, ProtectedRoute, GoogleSignInButton, landing, footer
+│   │   ├── context/           # AuthContext (login/register/logout state)
+│   │   ├── pages/             # Home, Yoga, Profile, About(planner), Login, Signup, Admin
+│   │   └── utils/             # apiClient (axios+token), pose math, images, audio
+│   └── vercel-note: build is a static bundle
+├── classification model/       # Offline ML pipeline (not deployed)
+│   ├── yoga_poses/            # Training/test images, one folder per pose class
+│   ├── movenet.py            # TFLite MoveNet wrapper (keypoint detection)
+│   ├── data.py               # BodyPart enum + shared data types
+│   ├── proprocessing.py      # Images ──► keypoint CSVs (train_data.csv / test_data.csv)
+│   ├── training.py           # CSVs ──► trained classifier ──► TF.js export
+│   ├── train_data.csv        # Extracted keypoints for training
+│   ├── test_data.csv         # Extracted keypoints for testing
+│   └── movenet_thunder.tflite # The downloaded MoveNet model
+├── vercel.json                # Multi-service deploy config (frontend + backend)
+└── readme.md
 ```
 
-## How It Works
+---
 
-1. The user selects a yoga pose in the live session page.
-2. The browser opens the webcam through `react-webcam`.
-3. TensorFlow.js MoveNet detects 17 body keypoints from each video frame.
-4. The app normalizes the detected landmarks and passes them into the trained pose classifier.
-5. If the classifier confidence for the selected pose is high enough, the skeleton turns green, the timer increases, and audio feedback plays.
-6. When the session stops, the frontend sends the best held time to the backend.
-7. The backend stores cumulative time, best pose time, daily performance, and leaderboard data in MongoDB.
+## The classification model (in depth)
 
-## Environment Variables
+Recognizing a yoga pose directly from raw camera pixels would need a large image model and a lot of data. POYO uses a lighter, more robust **two-stage** approach instead:
 
-Create environment files locally before running the app.
+1. **Pose estimation** — a pretrained model (MoveNet) finds *where the body is* (17 joints).
+2. **Pose classification** — a small custom neural network decides *which yoga pose those joints form*.
 
-### Frontend
+The big advantage: stage 2 never sees pixels. It only sees 34 numbers describing body geometry, so it's small, fast, trains on modest data, and generalizes across clothing, lighting, backgrounds, and skin tone.
 
-Copy `frontend/.env.example` to `frontend/.env`:
+### Stage 1 — MoveNet keypoint detection
+
+[MoveNet Thunder](https://www.tensorflow.org/hub/tutorials/movenet) (the "Thunder" = higher-accuracy variant) detects **17 body keypoints** in the COCO format. Each keypoint has an `x`, a `y`, and a confidence `score`:
+
+```
+0 nose        5 left_shoulder   11 left_hip     15 left_ankle
+1 left_eye    6 right_shoulder  12 right_hip    16 right_ankle
+2 right_eye   7 left_elbow      13 left_knee
+3 left_ear    8 right_elbow     14 right_knee
+4 right_ear   9 left_wrist
+              10 right_wrist
+```
+
+- **Offline (training):** `movenet.py` runs the TFLite model on dataset images.
+- **In the browser (live):** the same MoveNet, via `@tensorflow-models/pose-detection` (`SINGLEPOSE_THUNDER`), runs on webcam frames.
+
+Using the same keypoint model in both places is what makes training and live inference line up.
+
+### The dataset
+
+Images live under `classification model/yoga_poses/`, one subfolder per class:
+
+```
+yoga_poses/
+├── train/
+│   ├── chair/  cobra/  dog/  no_pose/  shoudler_stand/  traingle/  tree/  warrior/
+└── test/
+    └── (same folders)
+```
+
+That's **8 classes**, including a `no_pose` "none of the above" class so the model can say *"you're not doing any target pose."* The folder name becomes the label, and folders are sorted alphabetically to assign a class number (chair = 0, cobra = 1, dog = 2, no_pose = 3, shoulderstand = 4, triangle = 5, tree = 6, warrior = 7). The live app surfaces 6 of these poses to users.
+
+### Stage 2a — Preprocessing: images → keypoint CSVs
+
+`proprocessing.py` turns the image folders into two flat tables (`train_data.csv`, `test_data.csv`):
+
+1. Download MoveNet Thunder (TFLite, float16) if it isn't present.
+2. For every image, run MoveNet **3 times** — the first detection finds the person, and the next passes re-crop around them to sharpen the keypoints.
+3. **Quality filter:** if the *lowest* keypoint confidence in an image is below `0.1`, the image is skipped (bad/occluded detections don't pollute the data). Non-RGB images are skipped too.
+4. Write one row per image: the filename, then **51 numbers** = 17 keypoints × (`x`, `y`, `score`), plus the class number and class name.
+
+Each per-class CSV is then merged into one file with named columns like `LEFT_SHOULDER_x`, `LEFT_SHOULDER_y`, `LEFT_SHOULDER_score`, and so on.
+
+### Stage 2b — Landmark normalization (the important trick)
+
+Raw keypoint coordinates depend on *where you stand* and *how big you appear* in the frame — useless for classification. `training.py` converts the 51 raw numbers into a **34-number embedding** that is invariant to position and scale:
+
+1. **Reshape** the 51 values into a `(17, 3)` matrix and keep only `(x, y)` → `(17, 2)`.
+2. **Translate:** compute the pose center (midpoint of the two hips) and subtract it from every keypoint, so the body is centered at the origin.
+3. **Scale:** compute a `pose_size` and divide every coordinate by it. `pose_size` is the larger of:
+   - the torso length (shoulder-center to hip-center) × 2.5, and
+   - the maximum distance from the pose center to any keypoint.
+4. **Flatten** the normalized `(17, 2)` back into a 34-length vector.
+
+After this, the *same* pose produces (nearly) the *same* 34 numbers whether you're close or far, left or right in the frame. That's what lets a small network learn poses from limited data.
+
+> The browser reproduces this exact math in `frontend/src/pages/Yoga/Yoga.js` (`get_center_point`, `get_pose_size`, `normalize_pose_landmarks`, `landmarks_to_embedding`). Training normalization and live normalization must match, or the model would see different inputs than it trained on.
+
+### Stage 2c — Model architecture
+
+A compact fully-connected network (defined in `training.py`):
+
+```
+Input(34)
+  → Dense(128, relu6)
+  → Dropout(0.5)
+  → Dense(64, relu6)
+  → Dropout(0.5)
+  → Dense(num_classes, softmax)
+```
+
+- **`relu6`** is a bounded ReLU (caps activations at 6), which keeps values stable and is friendly to lightweight/quantized deployment.
+- **Dropout 0.5** after each hidden layer is heavy regularization — important because the input is tiny (34 features) and easy to overfit.
+- **Softmax** output gives a probability per pose class.
+
+### Stage 2d — Training configuration
+
+- **Split:** the training CSV is further split 85% train / 15% validation; the test CSV is held out for final evaluation.
+- **Loss / optimizer:** categorical cross-entropy, Adam.
+- **Epochs / batch:** up to 200 epochs, batch size 16.
+- **Checkpointing:** `ModelCheckpoint` saves the weights with the best validation accuracy to `weights.best.hdf5`.
+- **Early stopping:** training halts if validation accuracy doesn't improve for 20 epochs.
+- **Evaluation:** the final model is scored on the untouched test set.
+
+### Stage 2e — Export for the browser
+
+After training, `training.py`:
+- exports a **TensorFlow.js** model (`model.json` + a weights `.bin`) into `classification model/model/`, and
+- saves a Keras copy (`model.keras`).
+
+The TF.js `model/` folder is copied into `frontend/public/model/`, and the frontend loads it at runtime via `REACT_APP_MODEL_URL` (`/model/model.json`).
+
+### Live inference, end to end
+
+In `Yoga.js`, every ~100 ms:
+1. MoveNet detects 17 keypoints from the current webcam frame.
+2. Low-confidence keypoints are ignored; if too many are missing, the skeleton stays white.
+3. The keypoints are normalized into the 34-number embedding (same math as training).
+4. The classifier predicts probabilities for all classes.
+5. If the **selected** pose's probability exceeds **0.97**, the pose counts as "held": the skeleton turns green, the timer advances, and the count audio plays. Otherwise it resets.
+
+### Retraining the model
+
+```bash
+cd "classification model"
+
+# 1) Put labeled images in yoga_poses/train/<pose>/ and yoga_poses/test/<pose>/
+# 2) Extract keypoints into CSVs:
+python proprocessing.py
+# 3) Train + evaluate + export TF.js model:
+python training.py
+# 4) Copy the fresh model into the frontend:
+cp -r model/* ../frontend/public/model/
+```
+
+If you change the set of pose classes, also update the class list/`CLASS_NO` map in `frontend/src/pages/Yoga/Yoga.js`.
+
+---
+
+## Environment variables
+
+Both `.env` files are gitignored. Copy the provided `.env.example` files and fill in real values.
+
+### Frontend — `frontend/.env`
 
 ```env
 REACT_APP_MODEL_URL=/model/model.json
@@ -112,206 +264,160 @@ REACT_APP_API_BASE=http://localhost:4000
 REACT_APP_GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
-`REACT_APP_GOOGLE_CLIENT_ID` enables the "Sign in with Google" button (see [Google Sign-In setup](#google-sign-in-setup)). Leave the placeholder to hide the button.
+- `REACT_APP_MODEL_URL` — path to the TF.js classifier (served from `public/model/`).
+- `REACT_APP_API_BASE` — the single base URL for all backend calls. In production, set it to your deployed URL.
+- `REACT_APP_GOOGLE_CLIENT_ID` — enables the Google button (leave as-is to hide it). See [Google Sign-In setup](#google-sign-in-setup).
 
-`REACT_APP_MODEL_URL` points to the TensorFlow.js `model.json` served by the frontend (a copy lives in `frontend/public/model/`). `REACT_APP_API_BASE` is the single base URL for all backend requests (set it to your deployed backend in production).
-
-### Backend
-
-Copy `backend/.env.example` to `backend/.env`:
+### Backend — `backend/.env`
 
 ```env
 MONGODB_URL=your_mongodb_connection_string
-JWT_SECRET=change_me_to_a_long_random_string
-OPENAI_API_KEY=your_openai_api_key
+JWT_SECRET=a_long_random_string
+GROQ_API_KEY=your_groq_api_key
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
 CLIENT_ORIGIN=http://localhost:3000
 PORT=4000
 
-# Admin seed (used by: npm run seed:admin)
+# Used once by: npm run seed:admin
 ADMIN_EMAIL=admin@poyo.com
 ADMIN_PASSWORD=ChangeMe123!
 ```
 
-`JWT_SECRET` signs auth tokens — use a long random string and keep it private. The OpenAI key lives only on the backend — the AI planner calls `POST /api/generate-plan`, which proxies OpenAI so the key is never shipped to the browser. `CLIENT_ORIGIN` sets the allowed CORS origin. `ADMIN_EMAIL`/`ADMIN_PASSWORD` are used once to seed the first admin.
+- `JWT_SECRET` — signs auth tokens; keep it long, random, and private.
+- `GROQ_API_KEY` — powers the AI planner (see [AI planner](#ai-planner-groq)).
+- `GOOGLE_CLIENT_ID` — the backend verifies Google tokens against this.
+- `CLIENT_ORIGIN` — allowed CORS origin (your frontend URL).
+- `PORT` — local port. On Vercel/hosts this is provided automatically; don't hard-code it there.
 
-## Installation
+---
 
-Install frontend dependencies:
+## Local setup
+
+**Prerequisites:** Node.js 20, a MongoDB connection string (e.g. MongoDB Atlas free tier).
 
 ```bash
+# Backend
+cd backend
+npm install
+npm run seed:admin      # create the admin from ADMIN_EMAIL/ADMIN_PASSWORD
+npm run dev             # http://localhost:4000
+
+# Frontend (in a second terminal)
 cd frontend
 npm install
+npm start               # http://localhost:3000
 ```
 
-Install backend dependencies:
+> Port 4000 is used because macOS occupies port 5000 (AirPlay Receiver).
 
-```bash
-cd backend
-npm install
-```
+---
 
-## Running Locally
+## Admin account
 
-Start the backend:
-
-```bash
-cd backend
-npm run dev
-```
-
-The backend defaults to:
-
-```text
-http://localhost:4000
-```
-
-### Create the first admin
-
-With the backend `.env` filled in (including `ADMIN_EMAIL` / `ADMIN_PASSWORD`), seed the admin account:
+Create/update the admin with the seed script (reads `ADMIN_EMAIL` / `ADMIN_PASSWORD`):
 
 ```bash
 cd backend
 npm run seed:admin
 ```
 
-This creates (or promotes) the admin. Sign in to the admin portal at `/admin/login`.
+Then sign in at **`/admin/login`**. The dashboard lets an admin view usage stats and create, edit, promote/demote, and delete users. Guardrails prevent deleting your own account or removing the last remaining admin. You can change the admin password from the dashboard (edit your row) or by re-running the seed with a new `ADMIN_PASSWORD`.
 
-### Google Sign-In setup
+---
 
-The "Sign in with Google" button on the login and signup pages needs a Google OAuth **Client ID**. It is optional — email/password auth works without it, and the button stays hidden until it is configured.
+## Google Sign-In setup
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create (or pick) a project.
-2. Open **APIs & Services -> OAuth consent screen**, configure it as **External**, and add your email as a test user.
-3. Open **APIs & Services -> Credentials -> Create Credentials -> OAuth client ID**.
-4. Application type: **Web application**.
-5. Under **Authorized JavaScript origins** add:
-   - `http://localhost:3000`
-6. Click create and copy the **Client ID** (looks like `xx….apps.googleusercontent.com`).
-7. Put the same Client ID in both env files:
-   - `backend/.env` -> `GOOGLE_CLIENT_ID=...`
-   - `frontend/.env` -> `REACT_APP_GOOGLE_CLIENT_ID=...`
-8. Restart both servers (frontend env vars are read at build/start time).
+Optional — email/password works without it, and the button stays hidden until configured.
 
-The frontend renders Google's button, receives a signed ID token, and posts it to `POST /api/auth/google`. The backend verifies the token against `GOOGLE_CLIENT_ID`, then finds or creates the user and issues a normal POYO JWT. If a Google email matches an existing email/password account, the Google identity is linked to it.
+1. In the [Google Cloud Console](https://console.cloud.google.com/), create/select a project.
+2. **APIs & Services → OAuth consent screen** → set up as *External*, add yourself as a test user (publish it for production).
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID → Web application**.
+4. Under **Authorized JavaScript origins**, add your frontend origin(s):
+   - `http://localhost:3000` (local)
+   - your deployed frontend URL (production, HTTPS)
+5. Copy the **Client ID** (`…apps.googleusercontent.com`) into **both** `GOOGLE_CLIENT_ID` (backend) and `REACT_APP_GOOGLE_CLIENT_ID` (frontend).
+6. Restart both servers.
 
-Start the frontend:
+Flow: the frontend shows Google's button → Google returns a signed ID token → the frontend posts it to `POST /api/auth/google` → the backend verifies it against `GOOGLE_CLIENT_ID`, then finds or creates the user and issues a normal POYO JWT. A Google email that matches an existing account is linked to it.
 
-```bash
-cd frontend
-npm start
+---
+
+## AI planner (Groq)
+
+The planner calls a **free, OpenAI-compatible** model on [Groq](https://groq.com). Because the API is OpenAI-compatible, the backend keeps using the OpenAI SDK and just points it at Groq:
+
+```js
+new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' })
+// model: 'llama-3.3-70b-versatile'
 ```
 
-The frontend runs at:
+Get a free key at [console.groq.com/keys](https://console.groq.com/keys) and set `GROQ_API_KEY`. The key stays **server-side only** — the browser calls `POST /api/generate-plan`, which proxies Groq, so the key is never shipped to users. (Any OpenAI-compatible provider works by swapping the `baseURL`, key, and model.)
 
-```text
-http://localhost:3000
+---
+
+## API reference
+
+**Auth**
+- `POST /api/auth/register` — create an account, returns a JWT
+- `POST /api/auth/login` — sign in, returns a JWT
+- `POST /api/auth/google` — verify a Google ID token, find/create user, returns a JWT
+- `GET  /api/auth/me` — current user from the token
+
+**User data** (require a valid token; the user is derived from the token)
+- `POST /api/update-best-time` — update cumulative time + per-pose best
+- `POST /api/update-performance` — update today's per-pose performance
+- `GET  /api/profile` — current user's profile + best times
+- `GET  /api/best-times` — current user's best-time records
+- `GET  /api/get-performance` — current user's performance history
+- `GET  /api/leaderboard?pose=PoseName` — leaderboard for a pose
+
+**Admin** (require an admin token)
+- `GET    /api/admin/stats` — user counts + total practice time
+- `GET    /api/admin/users?search=…` — list/search users
+- `GET    /api/admin/users/:id` — one user + their best times
+- `POST   /api/admin/users` — create a user
+- `PUT    /api/admin/users/:id` — update a user (name, email, role, password)
+- `DELETE /api/admin/users/:id` — delete a user + their data
+
+**Other**
+- `POST /api/generate-plan` — AI yoga plan via the Groq proxy
+
+---
+
+## Deployment (Vercel + MongoDB Atlas)
+
+The whole app is a **monorepo** deployed to Vercel as **two services under one domain**, described by `vercel.json`:
+
+```json
+{
+  "services": {
+    "frontend": { "root": "frontend", "framework": "create-react-app" },
+    "backend":  { "root": "backend", "entrypoint": "server.js" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)?", "destination": { "type": "service", "service": "backend" } },
+    { "source": "/(.*)",       "destination": { "type": "service", "service": "frontend" } }
+  ]
+}
 ```
 
-## Available Routes
+- Requests to `/api/*` go to the Express backend; everything else serves the React app. Because they share one origin, there's no cross-origin/CORS complexity.
+- On the Vercel deploy screen: **Root Directory = `./`**, and leave Build/Output/Install commands empty (each service builds from its own folder).
+- Set the env vars in Vercel's dashboard (not `.env` files). Point `REACT_APP_API_BASE` and `CLIENT_ORIGIN` at your deployed domain, then redeploy (frontend env vars are baked in at build time). Don't set `PORT`.
 
-### Frontend Pages
+**MongoDB Atlas:** because Vercel's backend uses dynamic outbound IPs, set **Network Access → `0.0.0.0/0`** so the deployed backend can connect. The backend also caches its Mongo connection so serverless cold starts reuse a single connection instead of exhausting Atlas's limit.
 
-- `/` - Home page
-- `/login` - Sign in
-- `/signup` - Create an account
-- `/yoga` - Live webcam yoga session (requires login)
-- `/profile` - Profile, best times, total time, and leaderboard (requires login)
-- `/about` - AI yoga planner
-- `/yogaclass` - Yoga class pose list
-- `/yoga-pose/1` to `/yoga-pose/8` - Individual pose detail pages
-- `/admin/login` - Admin portal sign in
-- `/admin` - Admin dashboard with user management (requires admin role)
+---
 
-### Backend API
+## Analytics
 
-Auth:
+[Vercel Analytics](https://vercel.com/docs/analytics) is enabled via `@vercel/analytics`. `<Analytics />` (mounted in `frontend/src/index.js`) records page views across **all** routes, including the admin pages. The admin dashboard also emits custom events (`admin_user_created`, `admin_user_updated`, `admin_user_deleted`) so administrative actions show up in the Analytics dashboard.
 
-- `POST /api/auth/register` - Create an account, returns a JWT
-- `POST /api/auth/login` - Sign in, returns a JWT
-- `POST /api/auth/google` - Verify a Google ID token, find/create the user, returns a JWT
-- `GET /api/auth/me` - Current user from the token
+---
 
-User data (require a valid token; the user is derived from the token):
+## Security notes
 
-- `POST /api/update-best-time` - Updates cumulative pose time and best pose field
-- `POST /api/update-performance` - Updates daily performance for a pose
-- `GET /api/profile` - Current user's profile plus best times
-- `GET /api/best-times` - Current user's best time records
-- `GET /api/get-performance` - Current user's transformed performance data
-- `GET /api/leaderboard?pose=PoseName` - Leaderboard for a selected pose
-
-Admin (require an admin token):
-
-- `GET /api/admin/stats` - User counts and total practice time
-- `GET /api/admin/users?search=...` - List/search users
-- `GET /api/admin/users/:id` - Single user with their best times
-- `POST /api/admin/users` - Create a user
-- `PUT /api/admin/users/:id` - Update a user (name, email, role, password)
-- `DELETE /api/admin/users/:id` - Delete a user and their practice data
-
-Other:
-
-- `POST /api/generate-plan` - Generates an AI yoga plan via a server-side OpenAI proxy
-
-## Model Training Workflow
-
-The model training files live in `classification model/`.
-
-1. Put pose images inside:
-
-```text
-classification model/yoga_poses/train/
-classification model/yoga_poses/test/
-```
-
-2. Run preprocessing to detect MoveNet landmarks and generate CSV files:
-
-```bash
-cd "classification model"
-python proprocessing.py
-```
-
-3. Train the classifier:
-
-```bash
-python training.py
-```
-
-The training script builds a dense neural network from normalized landmark embeddings, evaluates it, saves a Keras model, and exports a TensorFlow.js model folder.
-
-## Current Implementation Notes
-
-- All frontend backend calls now go through a single `REACT_APP_API_BASE` (see `frontend/src/utils/api.js`).
-- The backend CORS origin is configurable via `CLIENT_ORIGIN`. Set it to the production frontend URL before deploying.
-- The AI planner calls the backend `POST /api/generate-plan` proxy, so the OpenAI key stays server-side and is never shipped to the browser.
-- Camera access requires HTTPS in most deployed browser environments, except localhost.
-
-## Security Notes
-
-- Keep MongoDB, JWT, and OpenAI secrets out of committed source files.
-- If a secret has ever been committed or exposed in frontend code, rotate it immediately.
-- Prefer calling OpenAI from the backend instead of the browser so the API key is never shipped to users.
-
-## Scripts
-
-### Frontend
-
-```bash
-npm start       # Start CRA development server
-npm run build   # Build production frontend
-npm test        # Run CRA test watcher
-```
-
-### Backend
-
-```bash
-npm run dev         # Start backend with nodemon
-npm start           # Start backend with nodemon server.js
-npm run seed:admin  # Create/promote the admin from ADMIN_EMAIL/ADMIN_PASSWORD
-npm test            # Placeholder test script
-```
-
-## Project Goal
-
-POYO is designed to make yoga practice more interactive and measurable by combining guided pose content, AI-generated planning, real-time pose recognition, and personal performance tracking in one web application.
+- Keep MongoDB, JWT, Google, and Groq secrets out of committed source — the `.env` files are gitignored; set real values in the host's dashboard.
+- Passwords are hashed with bcrypt; tokens are signed JWTs (7-day expiry). The password hash is never returned by the API.
+- The AI provider key lives only on the backend and is proxied, never exposed to the browser.
+- If a secret is ever committed or exposed, rotate it immediately.

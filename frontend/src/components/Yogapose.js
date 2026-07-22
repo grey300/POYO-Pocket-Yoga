@@ -11,7 +11,7 @@ const Yogapose = () => {
             {/* Title Image */}
             <img
                 src="/images/yogapose_title.svg"
-                alt="Title Image"
+                alt="Yoga poses"
                 width={400}
                 height={100}
                 className="absolute top-10 left-0 right-0 mx-auto"

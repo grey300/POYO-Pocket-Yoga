@@ -40,6 +40,7 @@ function Yoga() {
         if ((currentTime - startingTime) / 1000 > bestPerform) {
             setBestPerform(timeDiff);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentTime]);
 
     useEffect(() => {
@@ -227,7 +228,7 @@ function Yoga() {
                 <Navbar />
                 <div className='py-12'>
                     <div className="flex justify-center items-center">
-                        <img src="/images/live.svg" width="300" height="100" className="flex justify-center items-center py-4" />
+                        <img src="/images/live.svg" alt="Live session" width="300" height="100" className="flex justify-center items-center py-4" />
                     </div>
                 </div>
                 <div className="min-w-full min-h-screen">
@@ -250,6 +251,7 @@ function Yoga() {
 
                         <div>
                             <iframe
+                                title={`${currentPose} tutorial`}
                                 width="450"
                                 height="253"
                                 src={poseVideoUrls[currentPose]}

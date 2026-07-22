@@ -3,7 +3,7 @@ import { poseInstructions } from '../../utils/data'
 import { poseImages } from '../../utils/pose_images'
 
 export default function Instructions({ currentPose }) {
-    const [instructions, setInstructions] = useState(poseInstructions)
+    const [instructions] = useState(poseInstructions)
 
     return (
         <div className="flex justify-center items-center">

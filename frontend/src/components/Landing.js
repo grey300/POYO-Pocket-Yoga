@@ -39,6 +39,7 @@ export default function Landing() {
 
             <div className="absolute bottom-0 w-full flex justify-center items-center lg:justify-center lg:items-center">
                 <img src='/images/title.svg'
+                    alt='Yoga Re-imagined by AI'
                     width={800}
                     height={200}
                     className='' />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { poseImages } from '../../utils/pose_images';
+import PoseFigure from '../PoseFigure';
 
 /**
  * Visual pose picker. Keeps the original props so the live session page
@@ -23,10 +23,10 @@ export default function DropDown({ poseList, currentPose, setCurrentPose }) {
                                 : 'border-white/10 bg-ink-900 hover:border-white/25 hover:bg-ink-800'
                                 }`}
                         >
-                            <img
-                                src={poseImages[pose]}
-                                alt={pose}
-                                className={`w-full aspect-square object-cover rounded-lg transition-opacity ${active ? 'opacity-100' : 'opacity-60 group-hover:opacity-90'
+                            <PoseFigure
+                                pose={pose}
+                                tone={active ? 'cyan' : 'blue'}
+                                className={`w-full aspect-square rounded-lg transition-opacity ${active ? 'opacity-100' : 'opacity-55 group-hover:opacity-85'
                                     }`}
                             />
                             <span

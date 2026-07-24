@@ -1,6 +1,6 @@
 import React from 'react';
 import { poseInstructions } from '../../utils/data';
-import { poseImages } from '../../utils/pose_images';
+import PoseFigure from '../PoseFigure';
 
 export default function Instructions({ currentPose }) {
     const steps = poseInstructions[currentPose] || [];
@@ -20,12 +20,11 @@ export default function Instructions({ currentPose }) {
                     ))}
                 </ol>
             </div>
-            <div className="rounded-xl overflow-hidden border border-white/10 bg-ink-900">
-                <img
-                    className="w-full h-full max-h-72 object-cover"
-                    src={poseImages[currentPose]}
-                    alt={`${currentPose} pose demonstration`}
-                />
+            <div className="rounded-xl overflow-hidden border border-white/10 bg-ink-900 flex flex-col">
+                <PoseFigure pose={currentPose} className="w-full flex-1 max-h-72" />
+                <p className="text-center text-[11px] text-slate-500 pb-3 px-3">
+                    Target shape — the same joints POYO tracks on your camera.
+                </p>
             </div>
         </div>
     );

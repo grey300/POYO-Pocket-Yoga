@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { poseImages } from '../utils/pose_images';
+import PoseFigure from './PoseFigure';
 
 const POSES = [
     { name: 'Tree', detail: '/yoga-pose/1', blurb: 'Balance & focus' },
@@ -38,13 +38,12 @@ const Yogapose = () => (
                 {POSES.map((p) => (
                     <Link key={p.name} to={p.detail} className="group">
                         <div className="panel panel-hover overflow-hidden">
-                            <div className="relative aspect-[3/4] overflow-hidden bg-ink-800">
-                                <img
-                                    src={poseImages[p.name]}
-                                    alt={`${p.name} pose`}
-                                    className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                            <div className="relative aspect-[3/4] overflow-hidden bg-ink-800 flex items-center justify-center p-2">
+                                <PoseFigure
+                                    pose={p.name}
+                                    className="h-full w-auto opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/30 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent to-transparent" />
                             </div>
                             <div className="p-3">
                                 <p className="font-semibold text-white text-sm">{p.name}</p>

@@ -121,17 +121,12 @@ export default function NavBar() {
                         <div className="relative ml-2" ref={menuRef}>
                             <button
                                 onClick={() => setMenuOpen((s) => !s)}
-                                className={`flex items-center gap-2 rounded-full pl-1 pr-2 py-1 transition-colors ${menuOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
+                                className={`flex items-center rounded-full p-1 transition-all ${menuOpen ? 'ring-2 ring-[#3A5A40]/30' : 'hover:ring-2 hover:ring-slate-200'}`}
                                 aria-haspopup="menu"
                                 aria-expanded={menuOpen}
+                                aria-label="Account menu"
                             >
                                 <Avatar />
-                                <svg
-                                    className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`}
-                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                </svg>
                             </button>
 
                             {menuOpen && (

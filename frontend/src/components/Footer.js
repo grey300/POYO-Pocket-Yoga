@@ -8,7 +8,7 @@ const Footer = () => (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
                 <div>
                     <div className="mb-3">
-                        <Logo className="h-7" />
+                        <Logo className="text-lg" />
                     </div>
                     <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
                         Pocket Yoga — practice with real-time pose feedback, powered by on-device machine learning.

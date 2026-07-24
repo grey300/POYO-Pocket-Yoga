@@ -58,7 +58,7 @@ export default function NavBar() {
             <div className="max-w-6xl mx-auto flex items-center justify-between h-16 px-5 sm:px-6">
                 {/* Brand */}
                 <Link to="/" className="flex items-center">
-                    <Logo className="h-7" />
+                    <Logo className="text-lg" />
                 </Link>
 
                 {/* Desktop nav */}

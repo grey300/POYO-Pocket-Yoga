@@ -56,7 +56,7 @@ const Login = () => {
 
       <div className="relative w-full max-w-sm">
         <Link to="/" className="flex items-center justify-center mb-8">
-          <Logo className="h-8" />
+          <Logo className="text-xl" />
         </Link>
 
         <div className="panel p-7">

@@ -42,7 +42,7 @@ const AdminLogin = () => {
                 <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-2xl" />
                 <div className="absolute bottom-0 -right-16 w-80 h-80 rounded-full bg-glow-400/15 blur-2xl" />
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-                    <Logo className="h-8" badge="Admin" />
+                    <Logo className="text-xl" badge="Admin" />
                     <div>
                         <h1 className="text-4xl font-black leading-tight tracking-tight">
                             Manage your<br />yoga community.
@@ -59,7 +59,7 @@ const AdminLogin = () => {
             <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
                 <div className="w-full max-w-sm">
                     <div className="lg:hidden mb-8">
-                        <Logo className="h-8" badge="Admin" />
+                        <Logo className="text-xl" badge="Admin" />
                     </div>
 
                     <h2 className="text-2xl font-bold text-white">Welcome back</h2>

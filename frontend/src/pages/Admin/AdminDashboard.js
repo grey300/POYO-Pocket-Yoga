@@ -147,7 +147,7 @@ const AdminDashboard = () => {
             {/* Header */}
             <header className="sticky top-0 z-20 bg-ink-950/85 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
-                    <Logo className="h-7" badge="Admin" />
+                    <Logo className="text-lg" badge="Admin" />
                     <div className="flex items-center gap-3">
                         <div className="hidden sm:flex items-center gap-2">
                             <Avatar user={user} size="w-8 h-8" text="text-[10px]" />

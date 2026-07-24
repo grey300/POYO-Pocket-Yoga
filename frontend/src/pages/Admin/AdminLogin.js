@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../../components/Logo';
 
 const AdminLogin = () => {
     const navigate = useNavigate();
@@ -41,10 +42,7 @@ const AdminLogin = () => {
                 <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-2xl" />
                 <div className="absolute bottom-0 -right-16 w-80 h-80 rounded-full bg-glow-400/15 blur-2xl" />
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-                    <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-xl font-black">P</div>
-                        <span className="text-lg font-semibold tracking-tight">POYO Admin</span>
-                    </div>
+                    <Logo className="h-8" badge="Admin" />
                     <div>
                         <h1 className="text-4xl font-black leading-tight tracking-tight">
                             Manage your<br />yoga community.
@@ -60,9 +58,8 @@ const AdminLogin = () => {
             {/* Right form panel */}
             <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
                 <div className="w-full max-w-sm">
-                    <div className="lg:hidden flex items-center gap-3 mb-8 text-white">
-                        <div className="w-10 h-10 rounded-2xl bg-glow-500 flex items-center justify-center text-lg font-black">P</div>
-                        <span className="text-lg font-semibold">POYO Admin</span>
+                    <div className="lg:hidden mb-8">
+                        <Logo className="h-8" badge="Admin" />
                     </div>
 
                     <h2 className="text-2xl font-bold text-white">Welcome back</h2>

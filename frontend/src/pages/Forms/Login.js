@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
+import Logo from '../../components/Logo';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -54,9 +55,8 @@ const Login = () => {
       <div className="aurora" />
 
       <div className="relative w-full max-w-sm">
-        <Link to="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-glow-500 text-white flex items-center justify-center font-black shadow-glow">P</div>
-          <span className="font-bold text-white text-lg tracking-tight">POYO</span>
+        <Link to="/" className="flex items-center justify-center mb-8">
+          <Logo className="h-8" />
         </Link>
 
         <div className="panel p-7">

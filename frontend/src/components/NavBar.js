@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Avatar from './Avatar';
+import Logo from './Logo';
 
 const LINKS = [
     ['Yoga Class', '/yogaclass'],
@@ -56,11 +57,8 @@ export default function NavBar() {
         >
             <div className="max-w-6xl mx-auto flex items-center justify-between h-16 px-5 sm:px-6">
                 {/* Brand */}
-                <Link to="/" className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-glow-500 text-white flex items-center justify-center font-black text-sm shadow-glow">
-                        P
-                    </div>
-                    <span className="font-bold text-white tracking-tight">POYO</span>
+                <Link to="/" className="flex items-center">
+                    <Logo className="h-7" />
                 </Link>
 
                 {/* Desktop nav */}

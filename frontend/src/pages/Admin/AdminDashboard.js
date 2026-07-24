@@ -9,6 +9,7 @@ import { Line, Bar } from 'react-chartjs-2';
 import apiClient from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import Avatar from '../../components/Avatar';
+import Logo from '../../components/Logo';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend);
 
@@ -146,10 +147,7 @@ const AdminDashboard = () => {
             {/* Header */}
             <header className="sticky top-0 z-20 bg-ink-950/85 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-glow-500 text-white flex items-center justify-center font-black text-sm shadow-glow">P</div>
-                        <span className="font-semibold text-white">POYO Admin</span>
-                    </div>
+                    <Logo className="h-7" badge="Admin" />
                     <div className="flex items-center gap-3">
                         <div className="hidden sm:flex items-center gap-2">
                             <Avatar user={user} size="w-8 h-8" text="text-[10px]" />

@@ -1,16 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import Logo from './Logo';
 
 const Footer = () => (
     <footer className="bg-ink-900 border-t border-white/5">
         <div className="max-w-6xl mx-auto px-5 sm:px-6 py-14">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
                 <div>
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-glow-500 text-white flex items-center justify-center font-black text-sm">
-                            P
-                        </div>
-                        <span className="font-bold text-white">POYO</span>
+                    <div className="mb-3">
+                        <Logo className="h-7" />
                     </div>
                     <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
                         Pocket Yoga — practice with real-time pose feedback, powered by on-device machine learning.

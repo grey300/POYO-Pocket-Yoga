@@ -352,6 +352,24 @@ app.post('/api/generate-plan', async (req, res) => {
 
 /* --------------------------- Admin: user mgmt --------------------------- */
 
+// TEMPORARY diagnostic: reports which env vars the running server can see.
+// Returns booleans only (plus a 4-char key prefix) — never the secret values.
+// Safe to delete once deployment config is confirmed.
+app.get('/api/admin/env-check', requireAuth, requireAdmin, (req, res) => {
+    res.status(200).json({
+        success: true,
+        present: {
+            MONGODB_URL: !!process.env.MONGODB_URL,
+            JWT_SECRET: !!process.env.JWT_SECRET,
+            GROQ_API_KEY: !!process.env.GROQ_API_KEY,
+            GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
+        },
+        groqKeyPrefix: process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.slice(0, 4) : null,
+        clientOrigin: process.env.CLIENT_ORIGIN || null,
+        plannerReady: !!openai,
+    });
+});
+
 app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     try {
         const [totalUsers, totalAdmins, bestAgg] = await Promise.all([

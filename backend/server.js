@@ -321,7 +321,7 @@ app.get('/api/leaderboard', requireAuth, async (req, res) => {
 
 /* ------------------------------ AI planner ------------------------------ */
 
-app.post('/api/generate-plan', async (req, res) => {
+app.post('/api/generate-plan', requireAuth, async (req, res) => {
     if (!openai) {
         return res.status(503).json({
             success: false,

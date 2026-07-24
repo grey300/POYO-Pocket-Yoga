@@ -32,7 +32,6 @@ root.render(
             <AuthProvider>
                 <Routes>
                     <Route path="/" element={<App />} />
-                    <Route path="/about" element={<About />} />
                     <Route path="/yogaclass" element={<Yogaclass />} />
                     <Route path="/yoga-pose/1" element={<YogaPage1 />} />
                     <Route path="/yoga-pose/2" element={<YogaPage2 />} />
@@ -52,6 +51,14 @@ root.render(
                         element={
                             <ProtectedRoute>
                                 <Yoga />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/about"
+                        element={
+                            <ProtectedRoute>
+                                <About />
                             </ProtectedRoute>
                         }
                     />

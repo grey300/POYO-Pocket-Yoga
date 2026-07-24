@@ -2,14 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dropdown entrance animation (used by the navbar account menu). */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+@layer base {
+  html {
+    scroll-behavior: smooth;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  body {
+    @apply bg-ink-950 text-slate-200 antialiased;
   }
+
+  /* Dark scrollbar to match the theme */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0e17;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #26324a;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a4864;
+  }
+
+  /* Inputs default to the dark surface */
+  input,
+  select,
+  textarea {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  /* Frosted panel used across cards, modals, and sections */
+  .panel {
+    @apply bg-ink-850/80 border border-white/10 rounded-2xl backdrop-blur-sm;
+  }
+
+  .panel-hover {
+    @apply transition-colors hover:border-glow-400/40 hover:bg-ink-800/80;
+  }
+
+  .field {
+    @apply w-full bg-ink-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-slate-100
+           placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-glow-400/50 focus:border-transparent
+           transition-shadow;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-glow-500 hover:bg-glow-400
+           text-white font-medium px-4 py-2.5 transition-all shadow-glow
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10
+           text-slate-300 hover:text-white hover:border-white/25 hover:bg-white/5 px-4 py-2.5 transition-colors;
+  }
+
+  .label {
+    @apply block text-xs font-medium text-slate-400 mb-1.5;
+  }
+
+  /* Blue gradient text for headings */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-glow-200 to-glow-400;
+  }
+}
+
+/* Ambient background glow used on hero/auth screens */
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+}
+.aurora::before {
+  width: 40rem;
+  height: 40rem;
+  top: -12rem;
+  left: -8rem;
+  background: rgba(26, 109, 255, 0.22);
+}
+.aurora::after {
+  width: 32rem;
+  height: 32rem;
+  bottom: -10rem;
+  right: -6rem;
+  background: rgba(59, 140, 255, 0.14);
 }

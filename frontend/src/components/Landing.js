@@ -1,50 +1,83 @@
-import React from 'react'
+import React from 'react';
+import { Link } from 'react-router-dom';
+import YogaHero3D from './YogaHero3D';
+import { useAuth } from '../context/AuthContext';
 
 export default function Landing() {
+    const { isAuthenticated } = useAuth();
+
     return (
-        <main
-            initial="initial"
-            animate="enter"
-            className={'relative flex h-screen overflow-hidden w-full'}
-        >
-            <img
-                src={'/images/hero.svg'}
-                alt="hero_banner"
-                width={2000}
-                height={800}
-                className="absolute w-full h-full object-cover"
+        <section className="relative min-h-screen flex items-center overflow-hidden bg-ink-950">
+            <div className="aurora" />
+
+            {/* subtle grid */}
+            <div
+                className="absolute inset-0 opacity-[0.15]"
                 style={{
-                    left: '0',
-                    right: '0',
-                    margin: 'auto',
+                    backgroundImage:
+                        'linear-gradient(rgba(59,140,255,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(59,140,255,0.25) 1px, transparent 1px)',
+                    backgroundSize: '56px 56px',
+                    maskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 72%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse at 50% 40%, black 20%, transparent 72%)',
                 }}
             />
 
+            <div className="relative z-10 max-w-6xl mx-auto w-full px-5 sm:px-6 pt-28 pb-16 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                {/* Copy */}
+                <div className="animate-rise">
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-glow-300 bg-glow-500/10 border border-glow-400/25 px-3 py-1.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-glow-400 animate-pulse" />
+                        Real-time pose AI
+                    </span>
 
-            <div className="w-full h-full absolute z-0" />
-            <div
-                className="flex flex-col gap-8 absolute px-8 xl:px-6 md:py-16 xl:py-6 top-[20%] left-[15%]"
-            >
-                <div>
-                    <p
-                        className="text-5xl inline font-semibold"
-                    >
-                        Mindful Moves,<br />
-                        Intelligent Grooves:<br />
+                    <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight">
+                        <span className="text-white">Mindful moves,</span>
+                        <br />
+                        <span className="text-gradient">intelligent grooves.</span>
+                    </h1>
 
+                    <p className="mt-5 text-slate-400 text-lg leading-relaxed max-w-lg">
+                        POYO watches your posture through your webcam, tells you the moment you nail the pose, and
+                        times every hold — so you can practice yoga with real feedback instead of guesswork.
                     </p>
-                    <p className="text-3xl inline font-semibold">Yoga Re-imagined by AI</p>
+
+                    <div className="mt-8 flex flex-wrap gap-3">
+                        <Link to={isAuthenticated ? '/yoga' : '/signup'}>
+                            <button className="btn-primary text-base px-6 py-3">
+                                {isAuthenticated ? 'Start a session' : 'Get started free'}
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+                                </svg>
+                            </button>
+                        </Link>
+                        <Link to="/yogaclass">
+                            <button className="btn-ghost text-base px-6 py-3">Browse poses</button>
+                        </Link>
+                    </div>
+
+                    <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3">
+                        {[
+                            ['17', 'body points tracked'],
+                            ['6', 'poses recognized'],
+                            ['~10x', 'checks per second'],
+                        ].map(([stat, label]) => (
+                            <div key={label}>
+                                <p className="text-2xl font-extrabold text-white">{stat}</p>
+                                <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 3D scene */}
+                <div className="relative h-[380px] sm:h-[480px] lg:h-[560px]">
+                    <div className="absolute inset-0 rounded-full bg-glow-500/10 blur-3xl animate-pulseGlow" />
+                    <YogaHero3D className="relative w-full h-full" />
+                    <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] text-slate-600 tracking-wide">
+                        live skeleton · 17 keypoints
+                    </p>
                 </div>
             </div>
-
-            <div className="absolute bottom-0 w-full flex justify-center items-center lg:justify-center lg:items-center">
-                <img src='/images/title.svg'
-                    alt='Yoga Re-imagined by AI'
-                    width={800}
-                    height={200}
-                    className='' />
-            </div>
-        </main>
+        </section>
     );
 }
-;

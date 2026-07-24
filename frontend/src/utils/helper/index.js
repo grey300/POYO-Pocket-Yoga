@@ -1,11 +1,11 @@
-
-export function drawSegment(ctx, [mx, my], [tx, ty], color) {
-    ctx.beginPath()
-    ctx.moveTo(mx, my)
-    ctx.lineTo(tx, ty)
-    ctx.lineWidth = 5
-    ctx.strokeStyle = color
-    ctx.stroke()
+export function drawSegment(ctx, [mx, my], [tx, ty], color, lineWidth = 5) {
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(tx, ty);
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    ctx.stroke();
 }
 
 export function drawPoint(ctx, x, y, r, color) {

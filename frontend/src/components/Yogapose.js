@@ -1,35 +1,61 @@
-import React from 'react'
-import Slider2 from './Slider2'
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { poseImages } from '../utils/pose_images';
 
-const Yogapose = () => {
-    return (
-        <div
-            className="w-full h-auto bg-cover bg-center relative"
-            style={{ backgroundImage: `url('/images/yogapose.svg')` }}
-        >
-            {/* Title Image */}
-            <img
-                src="/images/yogapose_title.svg"
-                alt="Yoga poses"
-                width={400}
-                height={100}
-                className="absolute top-10 left-0 right-0 mx-auto"
-            />
+const POSES = [
+    { name: 'Tree', detail: '/yoga-pose/1', blurb: 'Balance & focus' },
+    { name: 'Chair', detail: '/yoga-pose/2', blurb: 'Legs & core' },
+    { name: 'Cobra', detail: '/yoga-pose/3', blurb: 'Spine & chest' },
+    { name: 'Warrior', detail: '/yoga-pose/4', blurb: 'Strength & stance' },
+    { name: 'Dog', detail: '/yoga-pose/5', blurb: 'Full-body stretch' },
+    { name: 'Shoulderstand', detail: '/yoga-pose/6', blurb: 'Inversion & calm' },
+];
 
-            {/* Slider Component */}
-            <div className="relative py-16">
-                <Slider2 />
+const Yogapose = () => (
+    <section className="relative bg-ink-900 py-20 sm:py-28 border-y border-white/5">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12">
+                <div>
+                    <p className="text-xs uppercase tracking-widest text-glow-400 font-semibold">Pose Library</p>
+                    <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                        Six poses, tracked live
+                    </h2>
+                    <p className="mt-3 text-slate-400 max-w-lg">
+                        Each one is recognized by the classifier in real time. Tap any pose to read the technique.
+                    </p>
+                </div>
+                <Link to="/yogaclass">
+                    <button className="btn-ghost whitespace-nowrap">
+                        View all
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                    </button>
+                </Link>
             </div>
 
-            {/* See More Button */}
-            <Link to="/yogaclass" className="absolute bottom-10 left-1/2 transform -translate-x-1/2">
-                <button className="bg-[#3A5A40] hover:bg-[#242F2A] text-white font-bold py-2 px-4 rounded">
-                    See More
-                </button>
-            </Link>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {POSES.map((p) => (
+                    <Link key={p.name} to={p.detail} className="group">
+                        <div className="panel panel-hover overflow-hidden">
+                            <div className="relative aspect-[3/4] overflow-hidden bg-ink-800">
+                                <img
+                                    src={poseImages[p.name]}
+                                    alt={`${p.name} pose`}
+                                    className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-ink-950/30 to-transparent" />
+                            </div>
+                            <div className="p-3">
+                                <p className="font-semibold text-white text-sm">{p.name}</p>
+                                <p className="text-xs text-slate-500">{p.blurb}</p>
+                            </div>
+                        </div>
+                    </Link>
+                ))}
+            </div>
         </div>
-    );
-};
+    </section>
+);
 
 export default Yogapose;

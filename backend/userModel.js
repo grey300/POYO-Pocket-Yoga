@@ -22,6 +22,13 @@ const userSchema = new mongoose.Schema(
             enum: ['user', 'admin'],
             default: 'user',
         },
+
+        // --- Gamification / activity tracking ---
+        currentStreak: { type: Number, default: 0 },
+        longestStreak: { type: Number, default: 0 },
+        lastPracticeDate: { type: Date },
+        sessionCount: { type: Number, default: 0 },
+        planCount: { type: Number, default: 0 },
     },
     { timestamps: true }
 );

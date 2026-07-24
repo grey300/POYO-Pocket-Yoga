@@ -7,7 +7,39 @@ import { OAuth2Client } from 'google-auth-library';
 import User from './userModel.js';
 import Best from './bestModel.js';
 import Performance from './performanceModel.js';
+import SavedPlan from './savedPlanModel.js';
 import { signToken, requireAuth, requireAdmin } from './authMiddleware.js';
+
+// --- Streak helpers -------------------------------------------------------
+const startOfDayLocal = (d) => {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+};
+const daysBetween = (a, b) =>
+    Math.round((startOfDayLocal(a) - startOfDayLocal(b)) / 86400000);
+
+/**
+ * Records a practice for `user` today and updates their streak.
+ * Same day  -> unchanged. Yesterday -> +1. Older/never -> reset to 1.
+ */
+function applyStreak(user) {
+    const now = new Date();
+    if (!user.lastPracticeDate) {
+        user.currentStreak = 1;
+    } else {
+        const gap = daysBetween(now, user.lastPracticeDate);
+        if (gap === 0) {
+            user.currentStreak = user.currentStreak || 1;
+        } else if (gap === 1) {
+            user.currentStreak = (user.currentStreak || 0) + 1;
+        } else {
+            user.currentStreak = 1;
+        }
+    }
+    user.longestStreak = Math.max(user.longestStreak || 0, user.currentStreak);
+    user.lastPracticeDate = now;
+}
 
 dotenv.config();
 
@@ -185,7 +217,21 @@ app.post('/api/update-best-time', requireAuth, async (req, res) => {
             updateObject,
             { new: true, upsert: true }
         );
-        res.status(200).json({ success: true, message: 'cumulative pose time updated' });
+
+        // Count the session and update the practice streak.
+        const user = await User.findById(req.user.id);
+        let streak = null;
+        if (user) {
+            user.sessionCount = (user.sessionCount || 0) + 1;
+            applyStreak(user);
+            await user.save();
+            streak = {
+                currentStreak: user.currentStreak,
+                longestStreak: user.longestStreak,
+            };
+        }
+
+        res.status(200).json({ success: true, message: 'cumulative pose time updated', streak });
     } catch (err) {
         console.log(err);
         res.status(500).json({ success: false, message: err.message });
@@ -303,6 +349,7 @@ app.get('/api/leaderboard', requireAuth, async (req, res) => {
             { $unwind: '$userDetails' },
             { $addFields: { [bestField]: { $toDouble: { $ifNull: [`$${bestField}`, 0] } } } },
             { $sort: { [bestField]: -1 } },
+            { $limit: 50 },
             {
                 $project: {
                     _id: 0,
@@ -310,6 +357,8 @@ app.get('/api/leaderboard', requireAuth, async (req, res) => {
                     [bestField]: 1,
                     'userDetails.firstName': 1,
                     'userDetails.lastName': 1,
+                    'userDetails.avatar': 1,
+                    'userDetails.currentStreak': 1,
                 },
             },
         ]);
@@ -343,6 +392,8 @@ app.post('/api/generate-plan', requireAuth, async (req, res) => {
             max_tokens: 300,
             temperature: 0.7,
         });
+        await User.findByIdAndUpdate(req.user.id, { $inc: { planCount: 1 } });
+
         res.status(200).json({ success: true, plan: completion.choices[0].message.content });
     } catch (err) {
         console.error('Error generating plan:', err.message);
@@ -350,40 +401,137 @@ app.post('/api/generate-plan', requireAuth, async (req, res) => {
     }
 });
 
-/* --------------------------- Admin: user mgmt --------------------------- */
+/* ------------------------------ Saved plans ----------------------------- */
 
-// TEMPORARY diagnostic: reports which env vars the running server can see.
-// Returns booleans only (plus a 4-char key prefix) — never the secret values.
-// Safe to delete once deployment config is confirmed.
-app.get('/api/admin/env-check', requireAuth, requireAdmin, (req, res) => {
-    res.status(200).json({
-        success: true,
-        present: {
-            MONGODB_URL: !!process.env.MONGODB_URL,
-            JWT_SECRET: !!process.env.JWT_SECRET,
-            GROQ_API_KEY: !!process.env.GROQ_API_KEY,
-            GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
-        },
-        groqKeyPrefix: process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.slice(0, 4) : null,
-        clientOrigin: process.env.CLIENT_ORIGIN || null,
-        plannerReady: !!openai,
-    });
+app.get('/api/plans', requireAuth, async (req, res) => {
+    try {
+        const plans = await SavedPlan.find({ userId: req.user.id }).sort({ createdAt: -1 });
+        res.status(200).json({ success: true, plans });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
+
+app.post('/api/plans', requireAuth, async (req, res) => {
+    const { title, content, meta } = req.body;
+    try {
+        if (!content) {
+            return res.status(400).json({ success: false, message: 'Plan content is required' });
+        }
+        const plan = await SavedPlan.create({
+            userId: req.user.id,
+            title: title?.trim() || `Plan · ${new Date().toLocaleDateString()}`,
+            content,
+            meta: meta || {},
+        });
+        res.status(201).json({ success: true, plan });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+app.delete('/api/plans/:id', requireAuth, async (req, res) => {
+    try {
+        // Scope the delete to the owner so users can't remove someone else's plan.
+        const result = await SavedPlan.deleteOne({ _id: req.params.id, userId: req.user.id });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ success: false, message: 'Plan not found' });
+        }
+        res.status(200).json({ success: true, message: 'Plan deleted' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+/* --------------------------- Admin: user mgmt --------------------------- */
 
 app.get('/api/admin/stats', requireAuth, requireAdmin, async (req, res) => {
     try {
-        const [totalUsers, totalAdmins, bestAgg] = await Promise.all([
+        const now = new Date();
+        const daysAgo = (n) => new Date(now.getTime() - n * 86400000);
+        const POSES = ['Tree', 'Chair', 'Cobra', 'Warrior', 'Dog', 'Shoulderstand'];
+
+        const [
+            totalUsers,
+            totalAdmins,
+            bestAgg,
+            activityAgg,
+            savedPlans,
+            active7,
+            active30,
+            new7,
+            signupRows,
+            poseRows,
+        ] = await Promise.all([
             User.countDocuments(),
             User.countDocuments({ role: 'admin' }),
             Best.aggregate([{ $group: { _id: null, total: { $sum: '$cumulativePoseTime' } } }]),
+            User.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        sessions: { $sum: { $ifNull: ['$sessionCount', 0] } },
+                        plans: { $sum: { $ifNull: ['$planCount', 0] } },
+                        sessionUsers: { $sum: { $cond: [{ $gt: [{ $ifNull: ['$sessionCount', 0] }, 0] }, 1, 0] } },
+                        planUsers: { $sum: { $cond: [{ $gt: [{ $ifNull: ['$planCount', 0] }, 0] }, 1, 0] } },
+                        bestStreak: { $max: { $ifNull: ['$longestStreak', 0] } },
+                    },
+                },
+            ]),
+            SavedPlan.countDocuments(),
+            User.countDocuments({ lastPracticeDate: { $gte: daysAgo(7) } }),
+            User.countDocuments({ lastPracticeDate: { $gte: daysAgo(30) } }),
+            User.countDocuments({ createdAt: { $gte: daysAgo(7) } }),
+            // Signups per day for the last 14 days
+            User.aggregate([
+                { $match: { createdAt: { $gte: daysAgo(13) } } },
+                { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+            ]),
+            // How many users have practiced each pose
+            Best.aggregate([
+                {
+                    $group: POSES.reduce(
+                        (acc, p) => ({
+                            ...acc,
+                            [p]: { $sum: { $cond: [{ $gt: [{ $ifNull: [`$${p}_best`, 0] }, 0] }, 1, 0] } },
+                        }),
+                        { _id: null }
+                    ),
+                },
+            ]),
         ]);
+
+        const a = activityAgg[0] || {};
+
+        // Fill in missing days so the chart has a continuous 14-day axis.
+        const signupMap = Object.fromEntries(signupRows.map((r) => [r._id, r.count]));
+        const signupsByDay = Array.from({ length: 14 }, (_, i) => {
+            const d = daysAgo(13 - i);
+            const key = d.toISOString().slice(0, 10);
+            return { date: key, count: signupMap[key] || 0 };
+        });
+
+        const poseCounts = poseRows[0] || {};
+        const posePopularity = POSES.map((p) => ({ pose: p, users: poseCounts[p] || 0 }));
+
         res.status(200).json({
             success: true,
             stats: {
                 totalUsers,
                 totalAdmins,
                 totalMembers: totalUsers - totalAdmins,
-                totalPracticeTime: bestAgg[0]?.total || 0,
+                totalPracticeTime: Math.round(bestAgg[0]?.total || 0),
+                totalSessions: a.sessions || 0,
+                totalPlans: a.plans || 0,
+                sessionUsers: a.sessionUsers || 0,
+                planUsers: a.planUsers || 0,
+                bestStreak: a.bestStreak || 0,
+                savedPlans,
+                activeUsers7d: active7,
+                activeUsers30d: active30,
+                newUsers7d: new7,
+                signupsByDay,
+                posePopularity,
             },
         });
     } catch (err) {

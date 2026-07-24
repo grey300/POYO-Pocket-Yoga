@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '../../components/NavBar';
-import image1 from '../../utils/images/pg.png';
 import { useAuth } from '../../context/AuthContext';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { register, loginWithGoogle } = useAuth();
+
+  const [formData, setFormData] = useState({
+    firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleGoogle = async (credential) => {
     setError('');
@@ -18,16 +22,6 @@ const SignUp = () => {
       setError(err.response?.data?.message || 'Google sign-up failed.');
     }
   };
-
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,9 +40,9 @@ const SignUp = () => {
       setError('Please enter your email address.');
       return;
     }
-    const passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/;
-    if (!passwordRegex.test(formData.password)) {
-      setError('Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character (!@#$%^&*).');
+    const strong = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$/;
+    if (!strong.test(formData.password)) {
+      setError('Password needs 8+ characters with upper, lower, a number, and a special character (!@#$%^&*).');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -72,21 +66,22 @@ const SignUp = () => {
     }
   };
 
-  const inputClass = 'w-full border border-gray-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#3A5A40]';
-
   return (
-    <div>
-      <Navbar />
-      <div className="flex flex-col md:flex-row justify-center items-center min-h-[80vh] pt-16">
-        <div className="md:w-1/2 p-6 order-1">
-          <img src={image1} alt="img" className="h-auto" />
-        </div>
-        <div className="md:w-1/2 p-6 order-1 max-w-md">
-          <p className="mb-2 font-bold text-2xl text-[#3A5A40]">Create your account</p>
-          <p className="mb-6 text-gray-600">Welcome! Please enter your details.</p>
+    <div className="min-h-screen bg-ink-950 relative flex items-center justify-center px-5 py-12">
+      <div className="aurora" />
+
+      <div className="relative w-full max-w-md">
+        <Link to="/" className="flex items-center justify-center gap-2.5 mb-8">
+          <div className="w-9 h-9 rounded-lg bg-glow-500 text-white flex items-center justify-center font-black shadow-glow">P</div>
+          <span className="font-bold text-white text-lg tracking-tight">POYO</span>
+        </Link>
+
+        <div className="panel p-7">
+          <h1 className="text-2xl font-bold text-white">Create your account</h1>
+          <p className="text-sm text-slate-400 mt-1 mb-6">Start tracking your practice in minutes.</p>
 
           {error && (
-            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+            <div className="mb-5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-2.5 text-sm">
               {error}
             </div>
           )}
@@ -94,45 +89,51 @@ const SignUp = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="firstName" className="block mb-1 text-sm font-medium text-gray-700">First Name</label>
-                <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} required />
+                <label htmlFor="firstName" className="label">First name</label>
+                <input id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className="field" required />
               </div>
               <div>
-                <label htmlFor="lastName" className="block mb-1 text-sm font-medium text-gray-700">Last Name</label>
-                <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} required />
+                <label htmlFor="lastName" className="label">Last name</label>
+                <input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className="field" required />
               </div>
             </div>
+
             <div>
-              <label htmlFor="email" className="block mb-1 text-sm font-medium text-gray-700">Email Address</label>
-              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} required />
+              <label htmlFor="email" className="label">Email address</label>
+              <input id="email" type="email" name="email" value={formData.email} onChange={handleChange}
+                placeholder="you@example.com" className="field" required />
             </div>
+
             <div>
-              <label htmlFor="password" className="block mb-1 text-sm font-medium text-gray-700">Password</label>
-              <input type="password" id="password" name="password" value={formData.password} onChange={handleChange} className={inputClass} required />
+              <label htmlFor="password" className="label">Password</label>
+              <input id="password" type="password" name="password" value={formData.password} onChange={handleChange}
+                placeholder="••••••••" className="field" required />
+              <p className="text-[11px] text-slate-500 mt-1.5">
+                8+ characters, with upper &amp; lowercase, a number, and a symbol.
+              </p>
             </div>
+
             <div>
-              <label htmlFor="confirmPassword" className="block mb-1 text-sm font-medium text-gray-700">Confirm Password</label>
-              <input type="password" id="confirmPassword" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={inputClass} required />
+              <label htmlFor="confirmPassword" className="label">Confirm password</label>
+              <input id="confirmPassword" type="password" name="confirmPassword" value={formData.confirmPassword}
+                onChange={handleChange} placeholder="••••••••" className="field" required />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#3A5A40] text-white py-2.5 px-4 rounded-lg hover:bg-[#242F2A] disabled:opacity-60"
-            >
-              {loading ? 'Creating account…' : 'Sign Up'}
+
+            <button type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
 
           <div className="flex items-center gap-3 my-5">
-            <div className="h-px bg-gray-200 flex-1" />
-            <span className="text-xs text-gray-400">OR</span>
-            <div className="h-px bg-gray-200 flex-1" />
+            <div className="h-px bg-white/10 flex-1" />
+            <span className="text-[11px] uppercase tracking-wide text-slate-500">or</span>
+            <div className="h-px bg-white/10 flex-1" />
           </div>
 
           <GoogleSignInButton onCredential={handleGoogle} onError={setError} />
 
-          <p className="mt-4 text-gray-600">
-            Have an account? <Link to="/login" className="text-[#3A5A40] font-semibold">Sign in</Link>
+          <p className="mt-6 text-sm text-slate-400 text-center">
+            Already have an account? <Link to="/login" className="text-glow-300 font-medium hover:text-glow-200">Sign in</Link>
           </p>
         </div>
       </div>

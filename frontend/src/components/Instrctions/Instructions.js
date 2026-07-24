@@ -1,24 +1,32 @@
-import React, { useState } from 'react'
-import { poseInstructions } from '../../utils/data'
-import { poseImages } from '../../utils/pose_images'
+import React from 'react';
+import { poseInstructions } from '../../utils/data';
+import { poseImages } from '../../utils/pose_images';
 
 export default function Instructions({ currentPose }) {
-    const [instructions] = useState(poseInstructions)
+    const steps = poseInstructions[currentPose] || [];
 
     return (
-        <div className="flex justify-center items-center">
-            <ul className="w-2/5 border-2 border-white border-opacity-20 rounded-lg p-2 mt-5">
-                {instructions[currentPose].map((instruction, index) => (
-                    <li key={index} className="text-black my-5">
-                        {instruction}
-                    </li>
-                ))}
-            </ul>
-            <img
-                className="h-96 aspect-w-1 aspect-h-1 rounded-lg"
-                src={poseImages[currentPose]}
-                alt="Pose Demo"
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-6">
+            <div>
+                <p className="text-sm font-semibold text-white mb-3">How to do it</p>
+                <ol className="space-y-2.5">
+                    {steps.map((instruction, index) => (
+                        <li key={index} className="flex gap-3 text-sm text-slate-300 leading-relaxed">
+                            <span className="shrink-0 w-5 h-5 rounded-full bg-glow-500/15 border border-glow-400/30 text-glow-300 text-[11px] font-bold flex items-center justify-center mt-0.5">
+                                {index + 1}
+                            </span>
+                            <span>{instruction}</span>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-white/10 bg-ink-900">
+                <img
+                    className="w-full h-full max-h-72 object-cover"
+                    src={poseImages[currentPose]}
+                    alt={`${currentPose} pose demonstration`}
+                />
+            </div>
         </div>
-    )
+    );
 }

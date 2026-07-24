@@ -6,7 +6,7 @@ function renderInline(text, key) {
     return parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
             return (
-                <strong key={`${key}-b${i}`} className="font-semibold text-slate-900">
+                <strong key={`${key}-b${i}`} className="font-semibold text-white">
                     {part.slice(2, -2)}
                 </strong>
             );
@@ -43,7 +43,7 @@ export default function PlanMarkdown({ content }) {
 
         if (isHeading(line)) {
             blocks.push(
-                <h3 key={`h${i}`} className="text-base font-bold text-[#3A5A40] mt-6 first:mt-0 mb-2">
+                <h3 key={`h${i}`} className="text-base font-bold text-glow-300 mt-6 first:mt-0 mb-2">
                     {stripHeading(line)}
                 </h3>
             );
@@ -59,9 +59,9 @@ export default function PlanMarkdown({ content }) {
                 i += 1;
             }
             blocks.push(
-                <ol key={`ol${start}`} className="list-decimal pl-5 space-y-2 my-3 marker:text-[#3A5A40] marker:font-semibold">
+                <ol key={`ol${start}`} className="list-decimal pl-5 space-y-2 my-3 marker:text-glow-300 marker:font-semibold">
                     {items.map((item, n) => (
-                        <li key={n} className="text-slate-700 leading-relaxed pl-1">
+                        <li key={n} className="text-slate-300 leading-relaxed pl-1">
                             {renderInline(item, `ol${start}-${n}`)}
                         </li>
                     ))}
@@ -78,9 +78,9 @@ export default function PlanMarkdown({ content }) {
                 i += 1;
             }
             blocks.push(
-                <ul key={`ul${start}`} className="list-disc pl-5 space-y-2 my-3 marker:text-[#A5B28F]">
+                <ul key={`ul${start}`} className="list-disc pl-5 space-y-2 my-3 marker:text-glow-500">
                     {items.map((item, n) => (
-                        <li key={n} className="text-slate-700 leading-relaxed pl-1">
+                        <li key={n} className="text-slate-300 leading-relaxed pl-1">
                             {renderInline(item, `ul${start}-${n}`)}
                         </li>
                     ))}
@@ -90,7 +90,7 @@ export default function PlanMarkdown({ content }) {
         }
 
         blocks.push(
-            <p key={`p${i}`} className="text-slate-700 leading-relaxed my-3">
+            <p key={`p${i}`} className="text-slate-300 leading-relaxed my-3">
                 {renderInline(line, `p${i}`)}
             </p>
         );

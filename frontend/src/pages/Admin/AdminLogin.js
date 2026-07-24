@@ -35,11 +35,11 @@ const AdminLogin = () => {
     };
 
     return (
-        <div className="min-h-screen flex bg-slate-950">
+        <div className="min-h-screen flex bg-ink-950">
             {/* Left brand panel */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#3A5A40] via-[#2c4531] to-[#1a231d]">
+            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-glow-700 via-glow-800 to-ink-900">
                 <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-2xl" />
-                <div className="absolute bottom-0 -right-16 w-80 h-80 rounded-full bg-emerald-400/10 blur-2xl" />
+                <div className="absolute bottom-0 -right-16 w-80 h-80 rounded-full bg-glow-400/15 blur-2xl" />
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white">
                     <div className="flex items-center gap-3">
                         <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center text-xl font-black">P</div>
@@ -61,7 +61,7 @@ const AdminLogin = () => {
             <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
                 <div className="w-full max-w-sm">
                     <div className="lg:hidden flex items-center gap-3 mb-8 text-white">
-                        <div className="w-10 h-10 rounded-2xl bg-[#3A5A40] flex items-center justify-center text-lg font-black">P</div>
+                        <div className="w-10 h-10 rounded-2xl bg-glow-500 flex items-center justify-center text-lg font-black">P</div>
                         <span className="text-lg font-semibold">POYO Admin</span>
                     </div>
 
@@ -87,7 +87,7 @@ const AdminLogin = () => {
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="admin@poyo.com"
-                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2.5 pl-10 pr-3 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-transparent"
+                                    className="w-full bg-ink-900 border border-white/10 text-white rounded-xl py-2.5 pl-10 pr-3 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-glow-400/50 focus:border-transparent"
                                     required
                                 />
                             </div>
@@ -105,7 +105,7 @@ const AdminLogin = () => {
                                     value={formData.password}
                                     onChange={handleChange}
                                     placeholder="••••••••"
-                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2.5 pl-10 pr-10 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-transparent"
+                                    className="w-full bg-ink-900 border border-white/10 text-white rounded-xl py-2.5 pl-10 pr-10 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-glow-400/50 focus:border-transparent"
                                     required
                                 />
                                 <button
@@ -126,7 +126,7 @@ const AdminLogin = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full mt-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60"
+                            className="w-full mt-2 bg-glow-500 hover:bg-glow-400 text-white font-semibold py-2.5 rounded-xl transition-colors disabled:opacity-60"
                         >
                             {loading ? 'Signing in…' : 'Sign In'}
                         </button>

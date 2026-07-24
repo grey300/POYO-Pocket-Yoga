@@ -10,13 +10,13 @@ import { drawPoint, drawSegment } from '../../utils/helper';
 import Navbar from '../../components/NavBar';
 import apiClient from '../../utils/api';
 
-import './Yoga.css'
+import './Yoga.css';
 
-let skeletonColor = 'rgb(255,255,255)';
-let poseList = [
-    'Tree', 'Chair', 'Cobra', 'Warrior', 'Dog',
-    'Shoulderstand'
-];
+const SKELETON_IDLE = 'rgba(255,255,255,0.85)';
+const SKELETON_OK = '#3B8CFF';
+
+let skeletonColor = SKELETON_IDLE;
+let poseList = ['Tree', 'Chair', 'Cobra', 'Warrior', 'Dog', 'Shoulderstand'];
 
 let interval;
 let flag = false;
@@ -31,6 +31,9 @@ function Yoga() {
     const [bestPerform, setBestPerform] = useState(0);
     const [currentPose, setCurrentPose] = useState('Tree');
     const [isStartPose, setIsStartPose] = useState(false);
+    const [isHolding, setIsHolding] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [summary, setSummary] = useState(null);
 
     useEffect(() => {
         const timeDiff = (currentTime - startingTime) / 1000;
@@ -98,8 +101,8 @@ function Yoga() {
     }
 
     const runMovenet = async () => {
-        await tf.ready();  // Ensure tf is ready
-        await tf.setBackend('webgl');  // Set the backend to 'webgl'
+        await tf.ready();
+        await tf.setBackend('webgl');
         const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER };
         const detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
         const poseClassifier = await tf.loadLayersModel(process.env.REACT_APP_MODEL_URL);
@@ -108,195 +111,271 @@ function Yoga() {
         interval = setInterval(() => {
             detectPose(detector, poseClassifier, countAudio);
         }, 100);
-    }
-
+    };
 
     const detectPose = async (detector, poseClassifier, countAudio) => {
-        const SHIFT_X_VALUE = 48; // Adjust this value to shift the landmarks left
-        const SHIFT_Y_VALUE = 46; // Adjust this value to shift the landmarks up
-
         if (
-            typeof webcamRef.current !== "undefined" &&
-            webcamRef.current !== null &&
-            webcamRef.current.video.readyState === 4
+            typeof webcamRef.current === 'undefined' ||
+            webcamRef.current === null ||
+            webcamRef.current.video.readyState !== 4 ||
+            canvasRef.current === null
         ) {
-            let notDetected = 0;
-            const video = webcamRef.current.video;
-            const pose = await detector.estimatePoses(video);
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            try {
-                const keypoints = pose[0].keypoints;
-                let input = keypoints.map((keypoint) => {
-                    if (keypoint.score > 0.4) {
-                        if (!(keypoint.name === 'left_eye' || keypoint.name === 'right_eye')) {
-                            const adjustedX = keypoint.x - SHIFT_X_VALUE;
-                            const adjustedY = keypoint.y - SHIFT_Y_VALUE;
-                            drawPoint(ctx, adjustedX, adjustedY, 8, 'rgb(255,255,255)');
-                            let connections = keypointConnections[keypoint.name];
-                            try {
-                                connections.forEach((connection) => {
-                                    let conName = connection.toUpperCase();
-                                    drawSegment(ctx, [adjustedX, adjustedY],
-                                        [keypoints[POINTS[conName]].x - SHIFT_X_VALUE,
-                                        keypoints[POINTS[conName]].y - SHIFT_Y_VALUE],
-                                        skeletonColor);
-                                });
-                            } catch (err) { }
-                        }
-                    } else {
-                        notDetected += 1;
-                    }
-                    return [keypoint.x - SHIFT_X_VALUE, keypoint.y - SHIFT_Y_VALUE];
-                });
-                if (notDetected > 4) {
-                    skeletonColor = 'rgb(255,255,255)';
-                    return;
-                }
-                const processedInput = landmarks_to_embedding(input);
-                const classification = poseClassifier.predict(processedInput);
-
-                classification.array().then((data) => {
-                    const classNo = CLASS_NO[currentPose];
-                    console.log(data[0][classNo]);
-                    if (data[0][classNo] > 0.97) {
-                        if (!flag) {
-                            countAudio.play();
-                            setStartingTime(new Date().getTime());
-                            flag = true;
-                        }
-                        setCurrentTime(new Date().getTime());
-                        skeletonColor = 'rgb(0,255,0)';
-                    } else {
-                        flag = false;
-                        skeletonColor = 'rgb(255,255,255)';
-                        countAudio.pause();
-                        countAudio.currentTime = 0;
-                    }
-                });
-            } catch (err) {
-                console.log(err);
-            }
+            return;
         }
-    }
 
+        let notDetected = 0;
+        const video = webcamRef.current.video;
+
+        // Keep the canvas in the SAME coordinate space as the video so keypoints
+        // (which MoveNet reports in the video's intrinsic resolution) line up
+        // exactly. CSS stretches both identically, so no manual offsets needed.
+        const { videoWidth, videoHeight } = video;
+        if (canvasRef.current.width !== videoWidth || canvasRef.current.height !== videoHeight) {
+            canvasRef.current.width = videoWidth;
+            canvasRef.current.height = videoHeight;
+        }
+
+        const pose = await detector.estimatePoses(video);
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, videoWidth, videoHeight);
+
+        try {
+            const keypoints = pose[0].keypoints;
+
+            // Scale the skeleton with the video so it looks right at any resolution.
+            const scale = Math.max(1, videoWidth / 640);
+
+            const input = keypoints.map((keypoint) => {
+                if (keypoint.score > 0.4) {
+                    if (!(keypoint.name === 'left_eye' || keypoint.name === 'right_eye')) {
+                        drawPoint(ctx, keypoint.x, keypoint.y, 6 * scale, '#EAF3FF');
+                        const connections = keypointConnections[keypoint.name];
+                        try {
+                            connections.forEach((connection) => {
+                                const conName = connection.toUpperCase();
+                                drawSegment(
+                                    ctx,
+                                    [keypoint.x, keypoint.y],
+                                    [keypoints[POINTS[conName]].x, keypoints[POINTS[conName]].y],
+                                    skeletonColor,
+                                    5 * scale
+                                );
+                            });
+                        } catch (err) { }
+                    }
+                } else {
+                    notDetected += 1;
+                }
+                return [keypoint.x, keypoint.y];
+            });
+
+            if (notDetected > 4) {
+                skeletonColor = SKELETON_IDLE;
+                return;
+            }
+
+            const processedInput = landmarks_to_embedding(input);
+            const classification = poseClassifier.predict(processedInput);
+
+            classification.array().then((data) => {
+                const classNo = CLASS_NO[currentPose];
+                if (data[0][classNo] > 0.97) {
+                    if (!flag) {
+                        countAudio.play();
+                        setStartingTime(new Date().getTime());
+                        flag = true;
+                        setIsHolding(true);
+                    }
+                    setCurrentTime(new Date().getTime());
+                    skeletonColor = SKELETON_OK;
+                } else {
+                    if (flag) setIsHolding(false);
+                    flag = false;
+                    skeletonColor = SKELETON_IDLE;
+                    countAudio.pause();
+                    countAudio.currentTime = 0;
+                }
+            });
+        } catch (err) {
+            /* no pose in frame */
+        }
+    };
 
     function startYoga() {
+        setSummary(null);
         setIsStartPose(true);
         runMovenet();
     }
 
-    function stopPose() {
+    async function stopPose() {
         setIsStartPose(false);
+        setIsHolding(false);
         clearInterval(interval);
-        // Save the best performance time to the backend. The auth token
-        // (attached by apiClient) identifies the user server-side.
-        apiClient.post('/api/update-best-time', {
-            bestPoseTime: bestPerform,
-            pose_name: currentPose
-        })
-            .then(response => {
-                console.log(response.data.message);
-            })
-            .catch(error => {
-                console.error('Error updating cumulative pose time:', error);
+        flag = false;
+        skeletonColor = SKELETON_IDLE;
+
+        const held = Number(bestPerform.toFixed(1));
+        if (held <= 0) {
+            setSummary({ held: 0, streak: null });
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const { data } = await apiClient.post('/api/update-best-time', {
+                bestPoseTime: held,
+                pose_name: currentPose,
             });
-        apiClient.post('/api/update-performance', {
-            bestTime: bestPerform,
-            pose_name: currentPose
-        }).then(response => {
-            console.log(response.data.message);
-        })
-            .catch(error => {
-                console.error('Error updating performance:', error);
-            });
+            apiClient
+                .post('/api/update-performance', { bestTime: held, pose_name: currentPose })
+                .catch(() => { });
+            setSummary({ held, streak: data.streak || null });
+        } catch (error) {
+            setSummary({ held, streak: null, error: 'Could not save this session.' });
+        } finally {
+            setSaving(false);
+        }
     }
 
     const poseVideoUrls = {
-        Tree: "https://www.youtube.com/embed/Fr5kiIygm0c?autoplay=1&loop=1&playlist=Fr5kiIygm0c&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Chair: "https://www.youtube.com/embed/tEZhXr0FuAQ?autoplay=1&loop=1&playlist=tEZhXr0FuAQ&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Cobra: "https://www.youtube.com/embed/pVmOOluGAv8?autoplay=1&loop=1&playlist=pVmOOluGAv8&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Warrior: "https://www.youtube.com/embed/Mn6RSIRCV3w?autoplay=1&loop=1&playlist=Mn6RSIRCV3w&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Dog: "https://www.youtube.com/embed/EC7RGJ975iM?autoplay=1&loop=1&playlist=EC7RGJ975iM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Shoulderstand: "https://www.youtube.com/embed/UjHTOW9x3WM?autoplay=1&loop=1&playlist=UjHTOW9x3WM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3",
-        Triangle: "https://www.youtube.com/embed/S6gB0QHbWFE?autoplay=1&loop=1&playlist=S6gB0QHbWFE&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3"
+        Tree: 'https://www.youtube.com/embed/Fr5kiIygm0c?autoplay=1&loop=1&playlist=Fr5kiIygm0c&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Chair: 'https://www.youtube.com/embed/tEZhXr0FuAQ?autoplay=1&loop=1&playlist=tEZhXr0FuAQ&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Cobra: 'https://www.youtube.com/embed/pVmOOluGAv8?autoplay=1&loop=1&playlist=pVmOOluGAv8&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Warrior: 'https://www.youtube.com/embed/Mn6RSIRCV3w?autoplay=1&loop=1&playlist=Mn6RSIRCV3w&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Dog: 'https://www.youtube.com/embed/EC7RGJ975iM?autoplay=1&loop=1&playlist=EC7RGJ975iM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Shoulderstand: 'https://www.youtube.com/embed/UjHTOW9x3WM?autoplay=1&loop=1&playlist=UjHTOW9x3WM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
+        Triangle: 'https://www.youtube.com/embed/S6gB0QHbWFE?autoplay=1&loop=1&playlist=S6gB0QHbWFE&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
     };
 
+    /* ------------------------------ Live view ------------------------------ */
     if (isStartPose) {
         return (
-            <div>
+            <div className="min-h-screen bg-ink-950">
                 <Navbar />
-                <div className='py-12'>
-                    <div className="flex justify-center items-center">
-                        <img src="/images/live.svg" alt="Live session" width="300" height="100" className="flex justify-center items-center py-4" />
-                    </div>
-                </div>
-                <div className="min-w-full min-h-screen">
-                    <div className="flex flex-row-reverse">
-                        <Webcam
-                            width='540px'
-                            height='380px'
-                            id="webcam"
-                            ref={webcamRef}
-                            className="border-2 border-green-500"
-                        />
-
-                        <canvas
-                            ref={canvasRef}
-                            id="my-canvas"
-                            width='540px'
-                            height='380px'
-                            className="absolute"
-                        />
-
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-12">
+                    <div className="flex items-center justify-between mb-5">
                         <div>
-                            <iframe
-                                title={`${currentPose} tutorial`}
-                                width="450"
-                                height="253"
-                                src={poseVideoUrls[currentPose]}
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                referrerPolicy="strict-origin-when-cross-origin"
-                                allowFullScreen
-                                className="absolute left-32 top-56">
-                            </iframe>
+                            <p className="text-xs uppercase tracking-widest text-glow-400 font-semibold">Live Session</p>
+                            <h1 className="text-2xl font-bold text-white">{currentPose} Pose</h1>
+                        </div>
+                        <span
+                            className={`flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-full border transition-colors ${isHolding
+                                ? 'bg-glow-500/15 border-glow-400/40 text-glow-200'
+                                : 'bg-white/5 border-white/10 text-slate-400'
+                                }`}
+                        >
+                            <span className={`w-2 h-2 rounded-full ${isHolding ? 'bg-glow-400 animate-pulse' : 'bg-slate-500'}`} />
+                            {isHolding ? 'Holding' : 'Get into position'}
+                        </span>
+                    </div>
 
-                            <div className="flex justify-center item-center absolute left-40 py-96">
-                                <div>
-                                    <h1>Pose Time: {poseTime} s</h1>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        {/* Camera */}
+                        <div className="lg:col-span-2">
+                            <div
+                                className={`relative rounded-2xl overflow-hidden border-2 transition-colors duration-300 ${isHolding ? 'border-glow-400 shadow-glow' : 'border-white/10'
+                                    }`}
+                            >
+                                <Webcam
+                                    ref={webcamRef}
+                                    id="webcam"
+                                    className="w-full h-auto block bg-black"
+                                    videoConstraints={{ width: 640, height: 480, facingMode: 'user' }}
+                                />
+                                <canvas
+                                    ref={canvasRef}
+                                    id="my-canvas"
+                                    className="absolute inset-0 w-full h-full pointer-events-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                                <div className="panel p-4 text-center">
+                                    <p className="text-xs uppercase tracking-wide text-slate-400">Current Hold</p>
+                                    <p className="text-3xl font-extrabold text-white mt-1">
+                                        {poseTime.toFixed(1)}<span className="text-base text-slate-400 ml-1">s</span>
+                                    </p>
                                 </div>
-                                <div className="ml-8">
-                                    <h1>Your Best: {bestPerform} s</h1>
+                                <div className="panel p-4 text-center">
+                                    <p className="text-xs uppercase tracking-wide text-slate-400">Session Best</p>
+                                    <p className="text-3xl font-extrabold text-glow-300 mt-1">
+                                        {bestPerform.toFixed(1)}<span className="text-base text-slate-400 ml-1">s</span>
+                                    </p>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Reference */}
+                        <div className="space-y-4">
+                            <div className="panel overflow-hidden">
+                                <p className="text-sm font-semibold text-white px-4 pt-4 pb-2">Reference</p>
+                                <iframe
+                                    title={`${currentPose} tutorial`}
+                                    src={poseVideoUrls[currentPose]}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    className="w-full aspect-video"
+                                />
+                            </div>
+
+                            <div className="panel p-4">
+                                <p className="text-sm font-semibold text-white mb-2">Tips</p>
+                                <ul className="text-sm text-slate-400 space-y-1.5 list-disc pl-4">
+                                    <li>Stand back so your whole body is visible.</li>
+                                    <li>Good lighting improves detection.</li>
+                                    <li>The skeleton turns <span className="text-glow-300 font-medium">blue</span> when the pose is correct.</li>
+                                </ul>
+                            </div>
+
+                            <button onClick={stopPose} disabled={saving} className="btn-primary w-full !bg-red-500 hover:!bg-red-400 !shadow-none">
+                                {saving ? 'Saving…' : 'Stop Session'}
+                            </button>
+                        </div>
                     </div>
-                    <button
-                        onClick={stopPose}
-                        className="bg-[red] hover:bg-[#966A61] text-white font-bold py-2 px-4 rounded absolute bottom-10 left-1/2 transform -translate-x-1/2"
-                    >Stop Pose</button>
                 </div>
             </div>
         );
     }
 
+    /* ---------------------------- Setup / summary --------------------------- */
     return (
-        <div>
+        <div className="min-h-screen bg-ink-950 relative">
+            <div className="aurora" />
             <Navbar />
-            <div className='py-10'>
-                <DropDown
-                    poseList={poseList}
-                    currentPose={currentPose}
-                    setCurrentPose={setCurrentPose}
-                />
-                <Instructions
-                    currentPose={currentPose}
-                />
-                <button
-                    onClick={startYoga}
-                    className="bg-[#3A5A40] hover:bg-[#242F2A] text-white font-bold py-2 px-4 rounded absolute bottom-10 left-1/2 transform -translate-x-1/2"
-                >Start Pose</button>
+            <div className="relative max-w-4xl mx-auto px-4 sm:px-6 pt-28 pb-16">
+                <div className="text-center mb-8">
+                    <p className="text-xs uppercase tracking-widest text-glow-400 font-semibold mb-2">Live Session</p>
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient">Practice with real-time feedback</h1>
+                    <p className="text-slate-400 mt-3 max-w-xl mx-auto">
+                        Pick a pose, allow camera access, and hold the position. POYO tracks your body and times how
+                        long you hold it correctly.
+                    </p>
+                </div>
+
+                {summary && (
+                    <div className="panel p-5 mb-6 text-center animate-rise">
+                        <p className="text-sm text-slate-400">Session complete</p>
+                        <p className="text-4xl font-extrabold text-white mt-1">
+                            {summary.held}<span className="text-lg text-slate-400 ml-1">s</span>
+                        </p>
+                        <p className="text-sm text-slate-400 mt-1">best hold for {currentPose}</p>
+                        {summary.streak && (
+                            <p className="mt-3 inline-flex items-center gap-2 text-sm bg-orange-500/10 border border-orange-500/30 text-orange-300 px-3 py-1.5 rounded-full">
+                                🔥 {summary.streak.currentStreak}-day streak
+                            </p>
+                        )}
+                        {summary.error && <p className="text-sm text-red-400 mt-2">{summary.error}</p>}
+                    </div>
+                )}
+
+                <div className="panel p-6">
+                    <DropDown poseList={poseList} currentPose={currentPose} setCurrentPose={setCurrentPose} />
+                    <Instructions currentPose={currentPose} />
+                    <button onClick={startYoga} className="btn-primary w-full mt-6 text-base py-3">
+                        Start Session
+                    </button>
+                </div>
             </div>
         </div>
     );

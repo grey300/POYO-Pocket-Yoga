@@ -45,6 +45,10 @@ const AdminDashboard = () => {
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState('');
 
+    const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwMsg, setPwMsg] = useState(null); // { type: 'error' | 'success', text }
+
     const fetchStats = useCallback(async () => {
         try {
             const { data } = await apiClient.get('/api/admin/stats');
@@ -111,6 +115,37 @@ const AdminDashboard = () => {
         }
     };
 
+    const handlePwChange = (e) => {
+        const { name, value } = e.target;
+        setPwForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const submitPassword = async (e) => {
+        e.preventDefault();
+        setPwMsg(null);
+        if (pwForm.newPassword.length < 8) {
+            setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+            return;
+        }
+        if (pwForm.newPassword !== pwForm.confirmPassword) {
+            setPwMsg({ type: 'error', text: 'New passwords do not match.' });
+            return;
+        }
+        setPwSaving(true);
+        try {
+            await apiClient.post('/api/change-password', {
+                currentPassword: pwForm.currentPassword,
+                newPassword: pwForm.newPassword,
+            });
+            setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            setPwMsg({ type: 'success', text: 'Password updated successfully.' });
+        } catch (err) {
+            setPwMsg({ type: 'error', text: err.response?.data?.message || 'Failed to update password.' });
+        } finally {
+            setPwSaving(false);
+        }
+    };
+
     const handleLogout = () => { logout(); navigate('/admin/login'); };
 
     const Stat = ({ label, value, sub, icon, accent = 'text-glow-300' }) => (
@@ -164,7 +199,7 @@ const AdminDashboard = () => {
 
                 {/* Tabs */}
                 <div className="flex gap-1 mb-6 p-1 rounded-xl bg-ink-900 border border-white/10 w-fit">
-                    {['overview', 'users'].map((t) => (
+                    {['overview', 'users', 'account'].map((t) => (
                         <button
                             key={t}
                             onClick={() => setTab(t)}
@@ -286,6 +321,42 @@ const AdminDashboard = () => {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {tab === 'account' && (
+                    <div className="panel p-6 max-w-md">
+                        <h2 className="font-semibold text-white">Change password</h2>
+                        <p className="text-sm text-slate-500 mb-5">Update the password for {user?.email}.</p>
+
+                        {pwMsg && (
+                            <div className={`mb-4 rounded-xl px-4 py-2.5 text-sm border ${pwMsg.type === 'success'
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                                : 'bg-red-500/10 border-red-500/30 text-red-300'}`}>
+                                {pwMsg.text}
+                            </div>
+                        )}
+
+                        <form onSubmit={submitPassword} className="space-y-4">
+                            <div>
+                                <label className="label">Current password</label>
+                                <input name="currentPassword" type="password" value={pwForm.currentPassword}
+                                    onChange={handlePwChange} className="field" autoComplete="current-password" required />
+                            </div>
+                            <div>
+                                <label className="label">New password <span className="text-slate-600 font-normal">(min 8 characters)</span></label>
+                                <input name="newPassword" type="password" value={pwForm.newPassword}
+                                    onChange={handlePwChange} className="field" autoComplete="new-password" required />
+                            </div>
+                            <div>
+                                <label className="label">Confirm new password</label>
+                                <input name="confirmPassword" type="password" value={pwForm.confirmPassword}
+                                    onChange={handlePwChange} className="field" autoComplete="new-password" required />
+                            </div>
+                            <button type="submit" disabled={pwSaving} className="btn-primary !py-2 w-full">
+                                {pwSaving ? 'Updating…' : 'Update password'}
+                            </button>
+                        </form>
                     </div>
                 )}
             </main>

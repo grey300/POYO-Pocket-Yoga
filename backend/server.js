@@ -202,6 +202,33 @@ app.get('/api/auth/me', requireAuth, async (req, res) => {
     }
 });
 
+// Self-service password change for the logged-in account (users and admins).
+app.post('/api/change-password', requireAuth, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    try {
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        // Accounts that already have a local password must confirm the current one.
+        // Google-only accounts (no passwordHash) can set an initial password here.
+        if (user.passwordHash && !(await user.comparePassword(currentPassword || ''))) {
+            return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+        }
+
+        await user.setPassword(newPassword);
+        await user.save();
+        res.status(200).json({ success: true, message: 'Password updated' });
+    } catch (err) {
+        console.error('Change password error:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 /* --------------------------- User data routes --------------------------- */
 
 app.post('/api/update-best-time', requireAuth, async (req, res) => {

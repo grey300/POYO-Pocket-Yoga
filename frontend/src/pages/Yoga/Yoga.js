@@ -5,6 +5,7 @@ import Webcam from 'react-webcam';
 import { count } from '../../utils/music';
 import Instructions from '../../components/Instrctions/Instructions';
 import DropDown from '../../components/DropDown/DropDown';
+import PoseFigure from '../../components/PoseFigure';
 import { POINTS, keypointConnections } from '../../utils/data';
 import { drawPoint, drawSegment } from '../../utils/helper';
 import Navbar from '../../components/NavBar';
@@ -237,15 +238,7 @@ function Yoga() {
         }
     }
 
-    const poseVideoUrls = {
-        Tree: 'https://www.youtube.com/embed/Fr5kiIygm0c?autoplay=1&loop=1&playlist=Fr5kiIygm0c&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Chair: 'https://www.youtube.com/embed/tEZhXr0FuAQ?autoplay=1&loop=1&playlist=tEZhXr0FuAQ&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Cobra: 'https://www.youtube.com/embed/pVmOOluGAv8?autoplay=1&loop=1&playlist=pVmOOluGAv8&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Warrior: 'https://www.youtube.com/embed/Mn6RSIRCV3w?autoplay=1&loop=1&playlist=Mn6RSIRCV3w&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Dog: 'https://www.youtube.com/embed/EC7RGJ975iM?autoplay=1&loop=1&playlist=EC7RGJ975iM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Shoulderstand: 'https://www.youtube.com/embed/UjHTOW9x3WM?autoplay=1&loop=1&playlist=UjHTOW9x3WM&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-        Triangle: 'https://www.youtube.com/embed/S6gB0QHbWFE?autoplay=1&loop=1&playlist=S6gB0QHbWFE&controls=0&modestbranding=1&showinfo=0&iv_load_policy=3&mute=1',
-    };
+    const tutorialSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${currentPose} pose yoga tutorial`)}`;
 
     /* ------------------------------ Live view ------------------------------ */
     if (isStartPose) {
@@ -307,16 +300,25 @@ function Yoga() {
 
                         {/* Reference */}
                         <div className="space-y-4">
-                            <div className="panel overflow-hidden">
-                                <p className="text-sm font-semibold text-white px-4 pt-4 pb-2">Reference</p>
-                                <iframe
-                                    title={`${currentPose} tutorial`}
-                                    src={poseVideoUrls[currentPose]}
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    className="w-full aspect-video"
-                                />
+                            <div className="panel p-4">
+                                <p className="text-sm font-semibold text-white mb-2">Reference</p>
+                                <div className="rounded-xl overflow-hidden border border-white/10 bg-ink-900">
+                                    <PoseFigure pose={currentPose} className="w-full aspect-video" />
+                                </div>
+                                <p className="text-center text-[11px] text-slate-500 mt-2">
+                                    Target shape — the same joints POYO tracks on your camera.
+                                </p>
+                                <a
+                                    href={tutorialSearchUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-ghost w-full mt-3 text-sm !py-2"
+                                >
+                                    <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <path d="M23.5 6.2a3 3 0 00-2.11-2.12C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.39.53A3 3 0 00.5 6.2 31.4 31.4 0 000 12a31.4 31.4 0 00.5 5.8 3 3 0 002.11 2.12C4.5 20.45 12 20.45 12 20.45s7.5 0 9.39-.53a3 3 0 002.11-2.12A31.4 31.4 0 0024 12a31.4 31.4 0 00-.5-5.8zM9.55 15.57V8.43L15.82 12l-6.27 3.57z" />
+                                    </svg>
+                                    Watch tutorial on YouTube
+                                </a>
                             </div>
 
                             <div className="panel p-4">

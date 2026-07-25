@@ -1,58 +1,56 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /**
- * WebGL hero: a futuristic dark-carbon android seated in a lotus / meditation
- * pose, slowly breathing and rocking. Built around the same 17 keypoints
- * MoveNet detects in the live session — the joints are the figure's glowing
- * energy cores, and the body is sculpted armor around them.
+ * WebGL hero: a stylized futuristic woman seated in a lotus / meditation pose,
+ * gently breathing and rocking. The body is built around the same 17 keypoints
+ * MoveNet tracks in the live session, sculpted into a feminine figure — curvy
+ * torso, slim limbs, a glowing bodysuit and hair in a bun.
  */
 
-// Seated lotus pose (y-up, ground at y = 0). Legs crossed low, hands on knees,
-// spine tall, head level.
+// Seated lotus pose (y-up, ground at y = 0), tuned to feminine proportions.
 const JOINTS = {
-    nose: [0, 1.28, 0.10],
-    left_eye: [-0.045, 1.31, 0.13],
-    right_eye: [0.045, 1.31, 0.13],
-    left_ear: [-0.10, 1.29, 0.03],
-    right_ear: [0.10, 1.29, 0.03],
-    left_shoulder: [-0.21, 1.00, 0],
-    right_shoulder: [0.21, 1.00, 0],
-    left_elbow: [-0.31, 0.70, 0.06],
-    right_elbow: [0.31, 0.70, 0.06],
-    left_wrist: [-0.42, 0.34, 0.17],
-    right_wrist: [0.42, 0.34, 0.17],
-    left_hip: [-0.17, 0.30, -0.02],
-    right_hip: [0.17, 0.30, -0.02],
-    left_knee: [-0.44, 0.12, 0.15],
-    left_ankle: [0.06, 0.22, 0.27],
-    right_knee: [0.44, 0.12, 0.15],
-    right_ankle: [-0.06, 0.26, 0.31],
+    nose: [0, 1.29, 0.10],
+    left_eye: [-0.038, 1.31, 0.125],
+    right_eye: [0.038, 1.31, 0.125],
+    left_ear: [-0.088, 1.29, 0.03],
+    right_ear: [0.088, 1.29, 0.03],
+    left_shoulder: [-0.19, 1.00, 0],
+    right_shoulder: [0.19, 1.00, 0],
+    left_elbow: [-0.29, 0.72, 0.06],
+    right_elbow: [0.29, 0.72, 0.06],
+    left_wrist: [-0.40, 0.36, 0.17],
+    right_wrist: [0.40, 0.36, 0.17],
+    left_hip: [-0.18, 0.32, -0.02],
+    right_hip: [0.18, 0.32, -0.02],
+    left_knee: [-0.42, 0.13, 0.16],
+    left_ankle: [0.06, 0.22, 0.28],
+    right_knee: [0.42, 0.13, 0.16],
+    right_ankle: [-0.06, 0.26, 0.32],
 };
 
-// Structural bones → sculpted limbs. [a, b, radius, hasPlate, hasCollar]
+// [a, b, radius, material] — arms bare (skin), legs in the suit.
 const LIMBS = [
-    ['left_shoulder', 'left_elbow', 0.052, true, false],
-    ['left_elbow', 'left_wrist', 0.042, false, true],
-    ['right_shoulder', 'right_elbow', 0.052, true, false],
-    ['right_elbow', 'right_wrist', 0.042, false, true],
-    ['left_hip', 'left_knee', 0.075, true, false],
-    ['left_knee', 'left_ankle', 0.06, false, true],
-    ['right_hip', 'right_knee', 0.075, true, false],
-    ['right_knee', 'right_ankle', 0.06, false, true],
-];
-
-const FACE_KEYS = ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear'];
-const MAJOR_JOINTS = [
-    'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
-    'left_wrist', 'right_wrist', 'left_hip', 'right_hip',
-    'left_knee', 'right_knee', 'left_ankle', 'right_ankle',
+    ['left_shoulder', 'left_elbow', 0.042, 'skin'],
+    ['left_elbow', 'left_wrist', 0.034, 'skin'],
+    ['right_shoulder', 'right_elbow', 0.042, 'skin'],
+    ['right_elbow', 'right_wrist', 0.034, 'skin'],
+    ['left_hip', 'left_knee', 0.078, 'suit'],
+    ['left_knee', 'left_ankle', 0.052, 'suit'],
+    ['right_hip', 'right_knee', 0.078, 'suit'],
+    ['right_knee', 'right_ankle', 0.052, 'suit'],
 ];
 
 const AXIS_Y = new THREE.Vector3(0, 1, 0);
 const AXIS_Z = new THREE.Vector3(0, 0, 1);
+
+// Feminine torso silhouette (radius, height) — hips → waist → bust → neck.
+const TORSO_PROFILE = [
+    [0.02, 0.30], [0.17, 0.33], [0.185, 0.37], [0.15, 0.46],
+    [0.122, 0.56], [0.116, 0.60], [0.135, 0.70], [0.165, 0.86],
+    [0.152, 0.92], [0.118, 0.99], [0.072, 1.03], [0.05, 1.06],
+];
 
 export default function YogaHero3D({ className = '' }) {
     const mountRef = useRef(null);
@@ -78,32 +76,32 @@ export default function YogaHero3D({ className = '' }) {
         renderer.setClearColor(0x000000, 0);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.15;
+        renderer.toneMappingExposure = 1.1;
         mount.appendChild(renderer.domElement);
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-        camera.position.set(0, 0.95, 3.55);
-        camera.lookAt(0, 0.62, 0);
+        camera.position.set(0, 0.92, 3.5);
+        camera.lookAt(0, 0.6, 0);
 
-        // --- Reflections: studio env so the dark metal isn't flat ------------
+        // --- Soft studio reflections -----------------------------------------
         let pmrem;
         let envRT;
         try {
             pmrem = new THREE.PMREMGenerator(renderer);
             envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
             scene.environment = envRT.texture;
-        } catch { /* reflections are optional */ }
+        } catch { /* reflections optional */ }
 
-        // --- Lighting ---------------------------------------------------------
-        const ambient = new THREE.AmbientLight(0x2a3c5c, 0.7);
-        const keyLight = new THREE.DirectionalLight(0xbcd6ff, 1.6);
-        keyLight.position.set(2.6, 3.4, 2.4);
-        const rimLight = new THREE.DirectionalLight(0x2f7bff, 1.4);
-        rimLight.position.set(-3, 1.4, -2.4);
-        const underGlow = new THREE.PointLight(0x3b8cff, 0.7, 8);
-        underGlow.position.set(0, 0.4, 1.2);
-        scene.add(ambient, keyLight, rimLight, underGlow);
+        // --- Flattering lighting: warm key, cool rim, soft fill --------------
+        const ambient = new THREE.AmbientLight(0x415068, 0.8);
+        const keyLight = new THREE.DirectionalLight(0xffe9d5, 1.35);
+        keyLight.position.set(2.5, 3.2, 2.6);
+        const rimLight = new THREE.DirectionalLight(0x3b8cff, 1.3);
+        rimLight.position.set(-3, 1.6, -2.2);
+        const fillLight = new THREE.PointLight(0x9fb8e0, 0.5, 10);
+        fillLight.position.set(0, 1.0, 2.6);
+        scene.add(ambient, keyLight, rimLight, fillLight);
 
         const figure = new THREE.Group();
         scene.add(figure);
@@ -113,26 +111,28 @@ export default function YogaHero3D({ className = '' }) {
         const track = (g) => { geometries.push(g); return g; };
 
         // --- Materials --------------------------------------------------------
-        const carbonMat = new THREE.MeshPhysicalMaterial({
-            color: 0x0c1220, metalness: 0.95, roughness: 0.4,
-            clearcoat: 0.6, clearcoatRoughness: 0.35, envMapIntensity: 1.1,
+        const skinMat = new THREE.MeshStandardMaterial({
+            color: 0xf0c6a0, roughness: 0.62, metalness: 0.0, envMapIntensity: 0.35,
         });
-        const plateMat = new THREE.MeshPhysicalMaterial({
-            color: 0x151f34, metalness: 0.9, roughness: 0.3,
-            clearcoat: 0.85, clearcoatRoughness: 0.22, envMapIntensity: 1.25,
+        const suitMat = new THREE.MeshPhysicalMaterial({
+            color: 0x223a63, roughness: 0.42, metalness: 0.35,
+            clearcoat: 0.5, clearcoatRoughness: 0.35, envMapIntensity: 0.9,
         });
-        const glowMat = new THREE.MeshStandardMaterial({
-            color: 0x0a1633, emissive: 0x3b8cff, emissiveIntensity: 2.3,
-            metalness: 0.3, roughness: 0.4,
+        const hairMat = new THREE.MeshStandardMaterial({
+            color: 0x241a2b, roughness: 0.5, metalness: 0.12, envMapIntensity: 0.5,
         });
-        const coreMat = new THREE.MeshBasicMaterial({ color: 0xbfe0ff });
+        const browMat = new THREE.MeshStandardMaterial({ color: 0x3a2a22, roughness: 0.7 });
+        const seamMat = new THREE.MeshStandardMaterial({
+            color: 0x0a1633, emissive: 0x49b0ff, emissiveIntensity: 2.0, roughness: 0.4,
+        });
         const haloMat = new THREE.MeshBasicMaterial({
-            color: 0x3b8cff, transparent: true, opacity: 0.32,
+            color: 0x3b8cff, transparent: true, opacity: 0.3,
             blending: THREE.AdditiveBlending, depthWrite: false,
         });
-        materials.push(carbonMat, plateMat, glowMat, coreMat, haloMat);
+        const matFor = (name) => (name === 'skin' ? skinMat : suitMat);
+        materials.push(skinMat, suitMat, hairMat, browMat, seamMat, haloMat);
 
-        // --- Placement helpers ------------------------------------------------
+        // --- Helpers ----------------------------------------------------------
         const vec = (k) => new THREE.Vector3(...JOINTS[k]);
         const segLen = (a, b) => vec(a).distanceTo(vec(b));
         const placeAlong = (mesh, a, b, axis, t = 0.5) => {
@@ -142,121 +142,101 @@ export default function YogaHero3D({ className = '' }) {
             mesh.position.copy(s).lerp(e, t);
             mesh.quaternion.setFromUnitVectors(axis, dir);
         };
+        const ball = (r, mat, pos, scale) => {
+            const m = new THREE.Mesh(track(new THREE.SphereGeometry(r, 20, 18)), mat);
+            m.position.set(...pos);
+            if (scale) m.scale.set(...scale);
+            figure.add(m);
+            return m;
+        };
 
-        // --- Limbs ------------------------------------------------------------
-        LIMBS.forEach(([a, b, r, hasPlate, hasCollar]) => {
+        // --- Torso: revolved feminine silhouette, flattened front-to-back ----
+        const profilePts = TORSO_PROFILE.map(([r, y]) => new THREE.Vector2(r, y));
+        const torsoGeo = track(new THREE.LatheGeometry(profilePts, 36));
+        const torso = new THREE.Mesh(torsoGeo, suitMat);
+        torso.scale.set(1, 1, 0.72);
+        figure.add(torso);
+
+        // Subtle bust + hip volume to read clearly feminine
+        ball(0.052, suitMat, [-0.058, 0.87, 0.085], [1, 1, 0.85]);
+        ball(0.052, suitMat, [0.058, 0.87, 0.085], [1, 1, 0.85]);
+        ball(0.085, suitMat, [-0.15, 0.34, -0.01], [1.1, 0.9, 0.9]);
+        ball(0.085, suitMat, [0.15, 0.34, -0.01], [1.1, 0.9, 0.9]);
+        // Shoulder caps
+        ball(0.05, suitMat, JOINTS.left_shoulder);
+        ball(0.05, suitMat, JOINTS.right_shoulder);
+
+        // Glowing suit accents (neckline + waist belt)
+        const neckline = new THREE.Mesh(track(new THREE.TorusGeometry(0.072, 0.009, 8, 34)), seamMat);
+        neckline.rotation.x = Math.PI / 2;
+        neckline.position.set(0, 1.0, 0.02);
+        neckline.scale.set(1, 0.75, 1);
+        figure.add(neckline);
+        const belt = new THREE.Mesh(track(new THREE.TorusGeometry(0.122, 0.011, 8, 42)), seamMat);
+        belt.rotation.x = Math.PI / 2;
+        belt.position.set(0, 0.585, 0);
+        belt.scale.set(1, 0.72, 1);
+        figure.add(belt);
+
+        // --- Limbs (smooth capsules) + blend spheres at joints ----------------
+        LIMBS.forEach(([a, b, r, mat]) => {
             const len = segLen(a, b);
-
-            const coreGeo = track(new THREE.CapsuleGeometry(r, Math.max(len - r * 2, 0.02), 6, 16));
-            const core = new THREE.Mesh(coreGeo, carbonMat);
-            placeAlong(core, a, b, AXIS_Y);
-            figure.add(core);
-
-            if (hasPlate) {
-                const plateGeo = track(new RoundedBoxGeometry(r * 3.1, len * 0.62, r * 3.1, 3, r * 0.9));
-                const plate = new THREE.Mesh(plateGeo, plateMat);
-                placeAlong(plate, a, b, AXIS_Y);
-                figure.add(plate);
-            }
-
-            if (hasCollar) {
-                const collarGeo = track(new THREE.TorusGeometry(r * 1.45, r * 0.3, 8, 22));
-                const collar = new THREE.Mesh(collarGeo, glowMat);
-                placeAlong(collar, a, b, AXIS_Z, 0.55);
-                figure.add(collar);
-            }
-        });
-
-        // --- Torso: stacked armor plates along the spine ----------------------
-        const torsoPlates = [
-            { y: 0.42, z: -0.01, w: 0.34, h: 0.24, d: 0.22 }, // pelvis
-            { y: 0.66, z: 0.01, w: 0.30, h: 0.24, d: 0.19 },  // abdomen
-            { y: 0.90, z: 0.02, w: 0.42, h: 0.30, d: 0.21 },  // chest
-        ];
-        torsoPlates.forEach(({ y, z, w, h, d }) => {
-            const g = track(new RoundedBoxGeometry(w, h, d, 4, 0.05));
-            const m = new THREE.Mesh(g, plateMat);
-            m.position.set(0, y, z);
+            const geo = track(new THREE.CapsuleGeometry(r, Math.max(len - r * 2, 0.02), 6, 16));
+            const m = new THREE.Mesh(geo, matFor(mat));
+            placeAlong(m, a, b, AXIS_Y);
             figure.add(m);
         });
+        // Joint blends
+        ball(0.04, skinMat, JOINTS.left_elbow);
+        ball(0.04, skinMat, JOINTS.right_elbow);
+        ball(0.062, suitMat, JOINTS.left_knee);
+        ball(0.062, suitMat, JOINTS.right_knee);
+        // Hands resting on knees, bare feet
+        ball(0.042, skinMat, JOINTS.left_wrist, [1.1, 0.8, 1.2]);
+        ball(0.042, skinMat, JOINTS.right_wrist, [1.1, 0.8, 1.2]);
+        ball(0.05, skinMat, JOINTS.left_ankle, [1, 0.75, 1.2]);
+        ball(0.05, skinMat, JOINTS.right_ankle, [1, 0.75, 1.2]);
 
-        // Chest reactor core (arc-reactor style, faces front)
-        const reactorRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.055, 0.016, 10, 26)), glowMat);
-        reactorRing.position.set(0, 0.94, 0.13);
-        figure.add(reactorRing);
-        const reactorCore = new THREE.Mesh(track(new THREE.SphereGeometry(0.03, 16, 16)), coreMat);
-        reactorCore.position.set(0, 0.94, 0.13);
-        figure.add(reactorCore);
-        const reactorHalo = new THREE.Mesh(track(new THREE.SphereGeometry(0.075, 16, 16)), haloMat);
-        reactorHalo.position.set(0, 0.94, 0.14);
-        figure.add(reactorHalo);
+        // Glowing knee rings
+        [['left_knee', 'left_ankle'], ['right_knee', 'right_ankle']].forEach(([a, b]) => {
+            const ring = new THREE.Mesh(track(new THREE.TorusGeometry(0.06, 0.008, 8, 24)), seamMat);
+            placeAlong(ring, a, b, AXIS_Z, 0.06);
+            figure.add(ring);
+        });
 
         // --- Neck + head ------------------------------------------------------
         const shoulderMid = vec('left_shoulder').add(vec('right_shoulder')).multiplyScalar(0.5);
         const headCenter = new THREE.Vector3(0, 1.30, 0.05);
+        const neckTop = new THREE.Vector3(0, 1.19, 0.04);
 
-        const neckDir = new THREE.Vector3().subVectors(headCenter, shoulderMid);
-        const neckGeo = track(new THREE.CapsuleGeometry(0.05, Math.max(neckDir.length() - 0.12, 0.02), 6, 14));
-        const neck = new THREE.Mesh(neckGeo, carbonMat);
-        neck.position.copy(shoulderMid).add(headCenter).multiplyScalar(0.5);
+        const neckDir = new THREE.Vector3().subVectors(neckTop, shoulderMid);
+        const neckGeo = track(new THREE.CapsuleGeometry(0.036, Math.max(neckDir.length() - 0.07, 0.02), 6, 14));
+        const neck = new THREE.Mesh(neckGeo, skinMat);
+        neck.position.copy(shoulderMid).add(neckTop).multiplyScalar(0.5);
         neck.quaternion.setFromUnitVectors(AXIS_Y, neckDir.clone().normalize());
         figure.add(neck);
 
-        const headGeo = track(new RoundedBoxGeometry(0.19, 0.24, 0.21, 5, 0.07));
-        const head = new THREE.Mesh(headGeo, plateMat);
-        head.position.copy(headCenter);
-        figure.add(head);
-
-        // Glowing visor across the eye line
-        const visor = new THREE.Mesh(track(new THREE.BoxGeometry(0.16, 0.035, 0.02)), glowMat);
-        visor.position.set(0, 1.31, 0.145);
-        figure.add(visor);
-
-        // --- Joints: dark ball + glowing energy core + halo -------------------
-        const ballGeo = track(new THREE.SphereGeometry(0.05, 18, 18));
-        const jointCoreGeo = track(new THREE.SphereGeometry(0.03, 14, 14));
-        const jointHaloGeo = track(new THREE.SphereGeometry(0.085, 16, 16));
-        const faceCoreGeo = track(new THREE.SphereGeometry(0.014, 10, 10));
-
-        MAJOR_JOINTS.forEach((k) => {
-            const p = JOINTS[k];
-            const ball = new THREE.Mesh(ballGeo, carbonMat);
-            ball.position.set(...p);
-            figure.add(ball);
-            const c = new THREE.Mesh(jointCoreGeo, glowMat);
-            c.position.set(...p);
-            figure.add(c);
-            const h = new THREE.Mesh(jointHaloGeo, haloMat);
-            h.position.set(...p);
-            figure.add(h);
-        });
-        // Face keypoints → small sensor dots on the head
-        FACE_KEYS.forEach((k) => {
-            const dot = new THREE.Mesh(faceCoreGeo, coreMat);
-            dot.position.set(...JOINTS[k]);
-            figure.add(dot);
+        // Face (serene, slightly tapered chin)
+        ball(0.104, skinMat, headCenter.toArray(), [0.86, 1.02, 0.92]);
+        // Closed-eye hints reuse the eye keypoints
+        [JOINTS.left_eye, JOINTS.right_eye].forEach((p) => {
+            const eye = new THREE.Mesh(track(new THREE.SphereGeometry(0.014, 10, 8)), browMat);
+            eye.position.set(p[0], p[1] - 0.005, p[2] - 0.01);
+            eye.scale.set(1.4, 0.4, 0.6);
+            figure.add(eye);
         });
 
-        // --- Hands / feet caps so limbs don't end abruptly --------------------
-        const capGeo = track(new RoundedBoxGeometry(0.075, 0.06, 0.09, 3, 0.025));
-        ['left_wrist', 'right_wrist', 'left_ankle', 'right_ankle'].forEach((k) => {
-            const cap = new THREE.Mesh(capGeo, carbonMat);
-            cap.position.set(...JOINTS[k]);
-            figure.add(cap);
-        });
+        // Hair: pulled-back cap + top bun, framing the face
+        ball(0.118, hairMat, [0, 1.322, -0.028], [0.98, 1.0, 1.02]);
+        ball(0.058, hairMat, [0, 1.40, -0.085]); // bun
+        ball(0.02, seamMat, [0, 1.40, -0.085], [1.6, 1.6, 1.6]); // faint glow tie
 
-        // --- Ground: glowing meditation ring ----------------------------------
-        const ring = new THREE.Mesh(
-            track(new THREE.TorusGeometry(0.78, 0.02, 12, 80)),
-            glowMat
-        );
+        // --- Ground meditation ring ------------------------------------------
+        const ring = new THREE.Mesh(track(new THREE.TorusGeometry(0.78, 0.018, 12, 80)), seamMat);
         ring.rotation.x = -Math.PI / 2;
         ring.position.y = 0.01;
         figure.add(ring);
-        const ringGlow = new THREE.Mesh(
-            track(new THREE.RingGeometry(0.7, 0.86, 64)),
-            haloMat
-        );
+        const ringGlow = new THREE.Mesh(track(new THREE.RingGeometry(0.7, 0.88, 64)), haloMat);
         ringGlow.rotation.x = -Math.PI / 2;
         ringGlow.position.y = 0.005;
         figure.add(ringGlow);
@@ -287,10 +267,9 @@ export default function YogaHero3D({ className = '' }) {
             const t = clock.getElapsedTime();
             if (!reduceMotion) {
                 figure.rotation.y = Math.sin(t * 0.22) * 0.5;
-                figure.position.y = Math.sin(t * 0.7) * 0.02;      // slow breath
-                const pulse = 2.0 + Math.sin(t * 1.5) * 0.6;
-                glowMat.emissiveIntensity = pulse;
-                haloMat.opacity = 0.28 + Math.sin(t * 1.5) * 0.1;
+                figure.position.y = Math.sin(t * 0.7) * 0.018;      // slow breath
+                seamMat.emissiveIntensity = 1.7 + Math.sin(t * 1.5) * 0.5;
+                haloMat.opacity = 0.26 + Math.sin(t * 1.5) * 0.09;
                 particles.rotation.y = t * 0.025;
             }
             renderer.render(scene, camera);

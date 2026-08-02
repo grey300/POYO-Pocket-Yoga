@@ -66,12 +66,12 @@ export default function YogaHero3D({ className = '' }) {
             scene.environment = envRT.texture;
         } catch { /* reflections optional */ }
 
-        const ambient = new THREE.AmbientLight(0x415068, 0.7);
-        const keyLight = new THREE.DirectionalLight(0xffe9d5, 1.5);
+        const ambient = new THREE.AmbientLight(0x415068, 0.4);
+        const keyLight = new THREE.DirectionalLight(0xffe9d5, 0.95);
         keyLight.position.set(2.5, 3.4, 2.6);
-        const rimLight = new THREE.DirectionalLight(0x3b8cff, 1.3);
+        const rimLight = new THREE.DirectionalLight(0x3b8cff, 0.85);
         rimLight.position.set(-3, 1.8, -2.2);
-        const fillLight = new THREE.PointLight(0x9fb8e0, 0.5, 12);
+        const fillLight = new THREE.PointLight(0x9fb8e0, 0.3, 12);
         fillLight.position.set(0, 1.1, 3);
         scene.add(ambient, keyLight, rimLight, fillLight);
 
@@ -159,7 +159,8 @@ export default function YogaHero3D({ className = '' }) {
                     model.traverse((o) => {
                         if (!o.isMesh) return;
                         const std = new THREE.MeshStandardMaterial({
-                            map: tex, roughness: 0.72, metalness: 0.05,
+                            map: tex, roughness: 0.8, metalness: 0.05,
+                            color: 0xcfcfcf, envMapIntensity: 0.5,
                         });
                         const old = Array.isArray(o.material) ? o.material : [o.material];
                         old.forEach((m) => m?.dispose?.());

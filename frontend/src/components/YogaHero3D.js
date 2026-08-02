@@ -17,7 +17,11 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 const PUBLIC = process.env.PUBLIC_URL || '';
 const FBX_URL = `${PUBLIC}/models/yoga.fbx`;
 const GLB_URL = `${PUBLIC}/models/yoga.glb`;
-const TARGET_HEIGHT = 1.5;      // world units the model's bind pose is scaled to
+// Tripo FBX ships its base colour as an external texture; load it ourselves so
+// we don't depend on the "+"-laden path baked into the FBX (which breaks over
+// HTTP). Left null for GLB models, which embed their own textures.
+const FBX_TEXTURE_URL = `${PUBLIC}/models/yoga_basecolor.jpg`;
+const TARGET_HEIGHT = 1.4;      // world units the model is scaled to
 const MODEL_Y_OFFSET = 0;       // nudge up/down if the figure floats or sinks
 const INITIAL_ROTATION_Y = 0;   // radians, if the model faces away from camera
 
@@ -120,14 +124,14 @@ export default function YogaHero3D({ className = '' }) {
         let model = null;
         let mixer = null;
 
-        const onModel = (object, animations) => {
+        const onModel = (object, animations, textureUrl) => {
             if (disposed) { // effect already cleaned up — drop it immediately
                 object.traverse((o) => o.geometry?.dispose?.());
                 return;
             }
             model = object;
 
-            // Center on the ring and scale the bind pose to a consistent height.
+            // Center on the ring and scale to a consistent height.
             const box = new THREE.Box3().setFromObject(model);
             const size = new THREE.Vector3();
             const center = new THREE.Vector3();
@@ -145,6 +149,26 @@ export default function YogaHero3D({ className = '' }) {
 
             spin.add(model);
 
+            // For the FBX, drop a clean PBR material with the base-colour map
+            // (its baked-in texture path 404s over HTTP).
+            if (textureUrl) {
+                new THREE.TextureLoader().load(textureUrl, (tex) => {
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                    disposables.textures.push(tex);
+                    model.traverse((o) => {
+                        if (!o.isMesh) return;
+                        const std = new THREE.MeshStandardMaterial({
+                            map: tex, roughness: 0.72, metalness: 0.05,
+                        });
+                        const old = Array.isArray(o.material) ? o.material : [o.material];
+                        old.forEach((m) => m?.dispose?.());
+                        o.material = std;
+                        disposables.materials.push(std);
+                    });
+                });
+            }
+
             if (animations?.length) {
                 mixer = new THREE.AnimationMixer(model);
                 mixer.clipAction(animations[0]).play();
@@ -157,10 +181,10 @@ export default function YogaHero3D({ className = '' }) {
             console.info(`YogaHero3D: no model at ${FBX_URL} or ${GLB_URL} — showing ambient scene.`);
         };
 
-        // Try Mixamo FBX first, then fall back to a GLB, then ambient-only.
+        // Try the FBX first (with its external texture), then a GLB, then ambient.
         new FBXLoader().load(
             FBX_URL,
-            (obj) => onModel(obj, obj.animations),
+            (obj) => onModel(obj, obj.animations, FBX_TEXTURE_URL),
             undefined,
             () => new GLTFLoader().load(
                 GLB_URL,
@@ -218,6 +242,7 @@ export default function YogaHero3D({ className = '' }) {
             }
             disposables.geometries.forEach((g) => g.dispose());
             disposables.materials.forEach((m) => m.dispose());
+            disposables.textures.forEach((t) => t.dispose());
             envRT?.dispose();
             pmrem?.dispose();
             renderer.dispose();

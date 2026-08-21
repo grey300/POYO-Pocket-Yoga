@@ -1,6 +1,6 @@
 import React from "react";
 import PoseDetailLayout from "../../components/PoseDetailLayout";
-import Ypose from "./yogapose7.svg";
+import Ypose from "../../assets/poses/triangle-ai.webp";
 
 export default function YogaPage7() {
     return (

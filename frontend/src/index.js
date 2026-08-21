@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
@@ -7,22 +7,26 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Profile from './pages/Profile/Profile';
-import Yoga from './pages/Yoga/Yoga';
-import About from './pages/About/About';
-import Yogaclass from './pages/YogaClass/Yogaclass';
-import Login from './pages/Forms/Login';
-import Signup from './pages/Forms/Signup';
-import AdminLogin from './pages/Admin/AdminLogin';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import YogaPage1 from './pages/YogaPoseDetail/YogaPage1';
-import YogaPage2 from './pages/YogaPoseDetail/YogaPage2';
-import YogaPage3 from './pages/YogaPoseDetail/YogaPage3';
-import YogaPage4 from './pages/YogaPoseDetail/YogaPage4';
-import YogaPage5 from './pages/YogaPoseDetail/YogaPage5';
-import YogaPage6 from './pages/YogaPoseDetail/YogaPage6';
-import YogaPage7 from './pages/YogaPoseDetail/YogaPage7';
-import YogaPage8 from './pages/YogaPoseDetail/YogaPage8';
+import InteractionEffects from './components/InteractionEffects';
+
+// Keep the landing page (and its 3D hero) in the initial bundle. Heavier pose
+// detection, charts, forms, and admin screens load only when visited.
+const Profile = lazy(() => import('./pages/Profile/Profile'));
+const Yoga = lazy(() => import('./pages/Yoga/Yoga'));
+const About = lazy(() => import('./pages/About/About'));
+const Yogaclass = lazy(() => import('./pages/YogaClass/Yogaclass'));
+const Login = lazy(() => import('./pages/Forms/Login'));
+const Signup = lazy(() => import('./pages/Forms/Signup'));
+const AdminLogin = lazy(() => import('./pages/Admin/AdminLogin'));
+const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
+const YogaPage1 = lazy(() => import('./pages/YogaPoseDetail/YogaPage1'));
+const YogaPage2 = lazy(() => import('./pages/YogaPoseDetail/YogaPage2'));
+const YogaPage3 = lazy(() => import('./pages/YogaPoseDetail/YogaPage3'));
+const YogaPage4 = lazy(() => import('./pages/YogaPoseDetail/YogaPage4'));
+const YogaPage5 = lazy(() => import('./pages/YogaPoseDetail/YogaPage5'));
+const YogaPage6 = lazy(() => import('./pages/YogaPoseDetail/YogaPage6'));
+const YogaPage7 = lazy(() => import('./pages/YogaPoseDetail/YogaPage7'));
+const YogaPage8 = lazy(() => import('./pages/YogaPoseDetail/YogaPage8'));
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -30,6 +34,8 @@ root.render(
     <React.StrictMode>
         <BrowserRouter>
             <AuthProvider>
+              <InteractionEffects />
+              <Suspense fallback={<div className="min-h-screen bg-ink-950" />}>
                 <Routes>
                     <Route path="/" element={<App />} />
                     <Route path="/yogaclass" element={<Yogaclass />} />
@@ -79,6 +85,7 @@ root.render(
                         }
                     />
                 </Routes>
+              </Suspense>
                 <Analytics />
             </AuthProvider>
         </BrowserRouter>

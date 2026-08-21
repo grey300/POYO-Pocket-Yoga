@@ -1,6 +1,6 @@
 import React from "react";
 import PoseDetailLayout from "../../components/PoseDetailLayout";
-import Ypose from "./yogapose5.svg";
+import Ypose from "../../assets/poses/dog-ai.webp";
 
 export default function YogaPage5() {
     return (

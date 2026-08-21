@@ -36,11 +36,13 @@ export default function Yogaclass() {
           {CARDS.map((card) => (
             <Link key={card.id} to={`/yoga-pose/${card.id}`} className="group">
               <div className="panel panel-hover h-full flex flex-col overflow-hidden">
-                <div className="relative bg-ink-800 aspect-[4/3] flex items-center justify-center p-3">
+                <div className="relative bg-[#f7f9fc] aspect-[4/3] flex items-center justify-center overflow-hidden">
                   <PoseFigure
                     pose={card.pose}
-                    className="h-full w-auto opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                    fit="cover"
+                    className="h-full w-full opacity-90 group-hover:opacity-100 group-hover:scale-[1.04] transition-all duration-700 ease-out"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent to-transparent pointer-events-none" />
                   {card.tracked && (
                     <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide bg-glow-500/20 text-glow-200 border border-glow-400/30 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-glow-300" /> Live

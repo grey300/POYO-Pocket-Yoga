@@ -1,6 +1,6 @@
 import React from "react";
 import PoseDetailLayout from "../../components/PoseDetailLayout";
-import Ypose from "./yogapose6.svg";
+import Ypose from "../../assets/poses/shoulderstand-ai.webp";
 
 export default function YogaPage6() {
     return (

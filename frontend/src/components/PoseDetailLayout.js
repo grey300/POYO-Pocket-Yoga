@@ -41,9 +41,9 @@ export default function PoseDetailLayout({ image, title, sanskrit, tracked = fal
                     </div>
                 </div>
 
-                <div className="panel overflow-hidden">
-                    <div className="bg-white">
-                        <img src={image} alt={`${title} instructions`} className="w-full block" />
+                <div className="panel overflow-hidden pose-detail-visual max-w-3xl mx-auto">
+                    <div className="relative aspect-square overflow-hidden bg-[#f7f9fc]">
+                        <img src={image} alt={`${title} pose`} className="w-full h-full object-contain object-center" />
                     </div>
                 </div>
             </main>

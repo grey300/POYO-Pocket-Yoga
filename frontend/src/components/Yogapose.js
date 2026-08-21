@@ -38,10 +38,11 @@ const Yogapose = () => (
                 {POSES.map((p) => (
                     <Link key={p.name} to={p.detail} className="group">
                         <div className="panel panel-hover overflow-hidden">
-                            <div className="relative aspect-[3/4] overflow-hidden bg-ink-800 flex items-center justify-center p-2">
+                            <div className="relative aspect-[3/4] overflow-hidden bg-[#f7f9fc] flex items-center justify-center">
                                 <PoseFigure
                                     pose={p.name}
-                                    className="h-full w-auto opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                                    fit="cover"
+                                    className="h-full w-full opacity-90 group-hover:opacity-100 group-hover:scale-[1.04] transition-all duration-700 ease-out"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent to-transparent" />
                             </div>

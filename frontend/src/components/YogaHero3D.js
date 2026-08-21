@@ -20,7 +20,9 @@ const GLB_URL = `${PUBLIC}/models/yoga.glb`;
 // Tripo FBX ships its base colour as an external texture; load it ourselves so
 // we don't depend on the "+"-laden path baked into the FBX (which breaks over
 // HTTP). Left null for GLB models, which embed their own textures.
-const FBX_TEXTURE_URL = `${PUBLIC}/models/yoga_basecolor.jpg`;
+// 1024px WebP is visually identical at the hero's rendered size and is ~36x
+// smaller than the original 4096px JPEG (64 KB instead of 2.3 MB).
+const FBX_TEXTURE_URL = `${PUBLIC}/models/yoga_basecolor.webp`;
 const TARGET_HEIGHT = 1.4;      // world units the model is scaled to
 const MODEL_Y_OFFSET = 0;       // nudge up/down if the figure floats or sinks
 const INITIAL_ROTATION_Y = 0;   // radians, if the model faces away from camera

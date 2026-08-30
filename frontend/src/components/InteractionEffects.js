@@ -8,6 +8,7 @@ export default function InteractionEffects() {
 
     let current = window.scrollY;
     let target = current;
+    let lastWrittenY = current; // last position we wrote, to tell our scroll from the user's
     let frame = null;
 
     const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
@@ -26,34 +27,42 @@ export default function InteractionEffects() {
     };
 
     const animate = () => {
+      // Re-clamp every frame so lazily loaded content / the 3D hero changing
+      // the page height can't strand the target past the scrollable range.
+      target = Math.min(maxScroll(), Math.max(0, target));
       current += (target - current) * 0.14;
-      if (Math.abs(target - current) < 0.5) current = target;
-      window.scrollTo(0, current);
-      if (current !== target) frame = requestAnimationFrame(animate);
-      else frame = null;
+      if (Math.abs(target - current) < 0.4) current = target;
+      lastWrittenY = current;
+      // `behavior: 'instant'` bypasses CSS `scroll-behavior: smooth`, so the
+      // browser doesn't try to smooth-animate toward each frame — that double
+      // animation is what made momentum stall.
+      window.scrollTo({ top: current, left: 0, behavior: 'instant' });
+      frame = current !== target ? requestAnimationFrame(animate) : null;
     };
 
     const onWheel = (event) => {
       if (event.ctrlKey || event.metaKey || hasScrollableParent(event.target, event.deltaY)) return;
       event.preventDefault();
       const multiplier = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? window.innerHeight : 1;
+      if (!frame) current = window.scrollY; // resync before a fresh gesture
       target = Math.min(maxScroll(), Math.max(0, target + event.deltaY * multiplier));
-      if (!frame) {
-        current = window.scrollY;
-        frame = requestAnimationFrame(animate);
-      }
+      if (!frame) frame = requestAnimationFrame(animate);
     };
 
-    const syncPosition = () => {
-      if (!frame) current = target = window.scrollY;
+    // If the user scrolls another way (scrollbar drag, keyboard, touch, anchor
+    // jump), adopt that position and drop the momentum instead of fighting it.
+    const onScroll = () => {
+      if (Math.abs(window.scrollY - lastWrittenY) < 2) return; // our own write
+      if (frame) { cancelAnimationFrame(frame); frame = null; }
+      current = target = lastWrittenY = window.scrollY;
     };
 
     window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('scroll', syncPosition, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('scroll', syncPosition);
+      window.removeEventListener('scroll', onScroll);
     };
   }, []);
 

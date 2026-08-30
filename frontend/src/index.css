@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  html {
+  html,
+  body {
     scroll-behavior: smooth;
     scroll-padding-top: 88px;
   }

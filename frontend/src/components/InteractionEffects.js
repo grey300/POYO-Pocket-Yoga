@@ -2,6 +2,62 @@ import { useEffect } from 'react';
 
 export default function InteractionEffects() {
   useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (reducedMotion || !finePointer) return undefined;
+
+    let current = window.scrollY;
+    let target = current;
+    let frame = null;
+
+    const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const hasScrollableParent = (node, delta) => {
+      let element = node instanceof Element ? node : null;
+      while (element && element !== document.body) {
+        const style = window.getComputedStyle(element);
+        if (/(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight) {
+          const canScrollDown = delta > 0 && element.scrollTop + element.clientHeight < element.scrollHeight;
+          const canScrollUp = delta < 0 && element.scrollTop > 0;
+          if (canScrollDown || canScrollUp) return true;
+        }
+        element = element.parentElement;
+      }
+      return false;
+    };
+
+    const animate = () => {
+      current += (target - current) * 0.14;
+      if (Math.abs(target - current) < 0.5) current = target;
+      window.scrollTo(0, current);
+      if (current !== target) frame = requestAnimationFrame(animate);
+      else frame = null;
+    };
+
+    const onWheel = (event) => {
+      if (event.ctrlKey || event.metaKey || hasScrollableParent(event.target, event.deltaY)) return;
+      event.preventDefault();
+      const multiplier = event.deltaMode === 1 ? 18 : event.deltaMode === 2 ? window.innerHeight : 1;
+      target = Math.min(maxScroll(), Math.max(0, target + event.deltaY * multiplier));
+      if (!frame) {
+        current = window.scrollY;
+        frame = requestAnimationFrame(animate);
+      }
+    };
+
+    const syncPosition = () => {
+      if (!frame) current = target = window.scrollY;
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('scroll', syncPosition, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('scroll', syncPosition);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!window.matchMedia('(pointer: fine)').matches) return undefined;
 
     const dot = document.createElement('div');
